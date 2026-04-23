@@ -1,0 +1,24 @@
+.gradle/
+.idea/
+.kotlin/
+build/
+*.class
+*.jar
+*.bin
+/local.properties
+/.idea/workspace.xml
+/.idea/tasks.xml
+/.idea/assetWizardSettings.xml
+/.idea/dictionaries
+/.idea/libraries
+/.idea/caches
+
+# Log files
+large_logs.txt
+logs.txt
+logs_a.txt
+logs_b.txt
+
+# OS files
+.DS_Store
+Thumbs.db

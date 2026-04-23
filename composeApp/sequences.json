@@ -1,0 +1,81 @@
+[
+    {
+        "id": "seq_394",
+        "name": "System Task Flow",
+        "steps": [
+            {
+                "pattern": {
+                    "name": "Init",
+                    "patternString": "Initializing component...",
+                    "idPlaceholder": "{id}"
+                },
+                "minCount": 1,
+                "maxCount": 1
+            },
+            {
+                "pattern": {
+                    "name": "Conn",
+                    "patternString": "Connection established to server.",
+                    "idPlaceholder": "{id}"
+                },
+                "minCount": 1,
+                "maxCount": 1
+            },
+            {
+                "pattern": {
+                    "name": "Fetch",
+                    "patternString": "Fetching data from database...",
+                    "idPlaceholder": "{id}"
+                },
+                "minCount": 1,
+                "maxCount": 1
+            },
+            {
+                "pattern": {
+                    "name": "Sync",
+                    "patternString": "Synchronization complete.",
+                    "idPlaceholder": "{id}"
+                },
+                "minCount": 1,
+                "maxCount": 1
+            }
+        ],
+        "strategy": "SEQUENTIAL",
+        "isEnabled": true
+    },
+    {
+        "id": "seq_9124",
+        "name": "Background Worker Flow",
+        "steps": [
+            {
+                "pattern": {
+                    "name": "Start",
+                    "patternString": "Starting background task #{id}",
+                    "idPlaceholder": "{id}"
+                },
+                "minCount": 1,
+                "maxCount": 1
+            },
+            {
+                "pattern": {
+                    "name": "Process",
+                    "patternString": "Processing item ID: {id}",
+                    "idPlaceholder": "{id}"
+                },
+                "minCount": 1,
+                "maxCount": 1
+            },
+            {
+                "pattern": {
+                    "name": "Cache",
+                    "patternString": "Updating cache",
+                    "idPlaceholder": "{id}"
+                },
+                "minCount": 1,
+                "maxCount": 1
+            }
+        ],
+        "strategy": "SEQUENTIAL",
+        "isEnabled": true
+    }
+]
