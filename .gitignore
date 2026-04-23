@@ -4,6 +4,7 @@
 build/
 *.class
 *.jar
+!gradle/wrapper/gradle-wrapper.jar
 *.bin
 /local.properties
 /.idea/workspace.xml
