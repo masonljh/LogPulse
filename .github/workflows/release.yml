@@ -8,8 +8,11 @@ on:
 
 jobs:
   build:
-    name: Build and Release
-    runs-on: windows-latest
+    name: Build and Release (${{ matrix.os }})
+    strategy:
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     permissions:
       contents: write
 
@@ -25,9 +28,13 @@ jobs:
           cache: 'gradle'
 
       - name: Grant execute permission for gradlew
-        run: git update-index --chmod=+x gradlew
+        run: |
+          if [ "${{ runner.os }}" != "Windows" ]; then
+            chmod +x gradlew
+          fi
+        shell: bash
 
-      - name: Build Windows Distribution
+      - name: Build Distribution
         run: ./gradlew :composeApp:packageDistributionForCurrentOS
 
       - name: Release
@@ -40,5 +47,7 @@ jobs:
           files: |
             composeApp/build/compose/binaries/main/msi/*.msi
             composeApp/build/compose/binaries/main/exe/*.exe
+            composeApp/build/compose/binaries/main/dmg/*.dmg
+            composeApp/build/compose/binaries/main/pkg/*.pkg
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
