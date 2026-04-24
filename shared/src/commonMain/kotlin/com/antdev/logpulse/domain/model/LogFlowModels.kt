@@ -75,7 +75,6 @@ data class MatchedLog(
 
 @Serializable
 enum class AnalysisStrategy {
-    STRICT,    // Group by ID and PID/TID (Default)
     SEQUENTIAL // Group purely by appearance order in the log file
 }
 
@@ -87,7 +86,7 @@ data class SequencePattern(
     val id: String = "seq_${(0..9999).random()}", 
     val name: String,
     val steps: List<FlowStep>,
-    val strategy: AnalysisStrategy = AnalysisStrategy.STRICT,
+    val strategy: AnalysisStrategy = AnalysisStrategy.SEQUENTIAL,
     val isEnabled: Boolean = false
 )
 

@@ -27,3 +27,7 @@ Thumbs.db
 # Data files
 filters.json
 sequences.json
+
+# Repro and scratch files
+repro_*.txt
+scratch/

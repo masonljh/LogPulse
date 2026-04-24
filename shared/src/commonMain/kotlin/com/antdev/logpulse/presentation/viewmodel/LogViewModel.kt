@@ -121,7 +121,8 @@ class LogViewModel(
                         FlowStep(LogPattern("Fetch", "Fetching data from database...")),
                         FlowStep(LogPattern("Sync", "Synchronization complete."))
                     ),
-                    strategy = AnalysisStrategy.SEQUENTIAL
+                    strategy = AnalysisStrategy.SEQUENTIAL,
+                    isEnabled = true
                 )
             )
             registerSequence(
@@ -132,7 +133,8 @@ class LogViewModel(
                         FlowStep(LogPattern("Process", "Processing item ID: {id}")),
                         FlowStep(LogPattern("Cache", "Updating cache"))
                     ),
-                    strategy = AnalysisStrategy.SEQUENTIAL
+                    strategy = AnalysisStrategy.SEQUENTIAL,
+                    isEnabled = true
                 )
             )
         }

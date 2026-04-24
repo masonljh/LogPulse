@@ -65,26 +65,6 @@ class AnalyzeFlowsUseCaseTest {
     }
 
     @Test
-    fun testFailedFlowAnalysis() {
-        val logContent = """
-            04-17 00:00:10.123  1234  6000 I OrderEngine: Order flow_003 started
-            04-17 00:00:15.789  1234  6000 I PaymentProcessor: Payment for flow_003 processed
-        """.trimIndent()
-        
-        // This should fail because "Transaction verified" step is skipped and it's not optional
-        val logs = parser.parse(logContent)
-        val traces = analyzeUseCase.analyzeIncremental(
-            newLogs = logs,
-            existingFlows = emptyList(),
-            sequences = listOf(orderProcessingSequence)
-        )
-        
-        assertEquals(1, traces.size)
-        val trace = traces[0]
-        // Our current calculateStatus implementation returns Failed if it matches a later step before meeting minCount of current step
-        assertTrue(trace.status is FlowStatus.Failed, "Status should be Failed due to missing step. Current: ${trace.status}")
-    }
-    @Test
     fun testMultiInstanceSameId() {
         // flow_001 starts, finishes, then starts again
         val logContent = """
@@ -111,30 +91,58 @@ class AnalyzeFlowsUseCaseTest {
         assertEquals(5, traces[1].logs.size)
     }
     @Test
-    fun testSequentialStrategy() {
+    fun testLargeGapAnalysis() {
         val sequence = SequencePattern(
-            name = "Sequential Flow",
+            name = "Gap Flow",
             steps = listOf(
-                FlowStep(LogPattern("A", "Message A")),
-                FlowStep(LogPattern("B", "Message B")),
-                FlowStep(LogPattern("C", "Message C"))
+                FlowStep(LogPattern("Start", "Start")),
+                FlowStep(LogPattern("End", "End"))
             ),
             strategy = AnalysisStrategy.SEQUENTIAL,
             isEnabled = true
         )
 
-        // Logs from different TIDs/PIDs but in order
-        val logContent = """
-            04-17 00:00:01.000  1000  5000 I Tag: Message A
-            04-17 00:00:02.000  1001  5001 I Tag: Message B
-            04-17 00:00:03.000  1002  5002 I Tag: Message C
-        """.trimIndent()
+        val sb = StringBuilder()
+        sb.append("04-17 00:00:00.000  1000  5000 I Tag: Start\n")
+        // Add 3300 lines of noise
+        for (i in 1..3300) {
+            sb.append("04-17 00:00:01.000  1000  5000 D Noise: Line $i\n")
+        }
+        sb.append("04-17 00:00:02.000  1000  5000 I Tag: End\n")
 
-        val logs = parser.parse(logContent)
+        val logs = parser.parse(sb.toString())
         val traces = analyzeUseCase.analyzeIncremental(logs, emptyList(), listOf(sequence))
 
-        assertEquals(1, traces.size, "Should find one flow despite different TIDs")
+        assertEquals(1, traces.size, "Should detect flow despite 3300 lines of gap")
         assertTrue(traces[0].status is FlowStatus.Complete)
+        assertEquals(2, traces[0].logs.size)
+    }
+
+    @Test
+    fun testInterleavedFlowsNoId() {
+        val sequence = SequencePattern(
+            name = "Interleaved",
+            steps = listOf(
+                FlowStep(LogPattern("Start", "Start")),
+                FlowStep(LogPattern("End", "End"))
+            ),
+            strategy = AnalysisStrategy.SEQUENTIAL,
+            isEnabled = true
+        )
+
+        // Flow 1 Start, Flow 2 Start, Flow 1 End, Flow 2 End
+        val logData = """
+            04-17 00:00:01.000  1000  5001 I Tag: Start
+            04-17 00:00:02.000  1000  5002 I Tag: Start
+            04-17 00:00:03.000  1000  5001 I Tag: End
+            04-17 00:00:04.000  1000  5002 I Tag: End
+        """.trimIndent()
+
+        val logs = parser.parse(logData)
+        val traces = analyzeUseCase.analyzeIncremental(logs, emptyList(), listOf(sequence))
+
+        assertEquals(2, traces.size, "Should handle interleaved flows correctly")
+        assertTrue(traces.all { it.status is FlowStatus.Complete })
     }
 
     @Test
