@@ -246,6 +246,15 @@ class LogViewModel(
         refreshFilters()
     }
 
+    fun updateFilter(id: String, updatedFilter: LogFilter) {
+        val index = filters.indexOfFirst { it.id == id }
+        if (index != -1) {
+            filters[index] = updatedFilter
+            saveFilters()
+            refreshFilters()
+        }
+    }
+
     private fun saveFilters() {
         storage.saveFilters(filters.toList())
     }
@@ -275,6 +284,65 @@ class LogViewModel(
             saveSequences()
             reanalyzeAllFlows()
         }
+    }
+
+    fun moveStep(sequenceId: String, fromIndex: Int, toIndex: Int) {
+        val seqIndex = registeredSequences.indexOfFirst { it.id == sequenceId }
+        if (seqIndex == -1) return
+        
+        val sequence = registeredSequences[seqIndex]
+        if (fromIndex !in sequence.steps.indices || toIndex !in sequence.steps.indices) return
+        
+        val newSteps = sequence.steps.toMutableList()
+        val step = newSteps.removeAt(fromIndex)
+        newSteps.add(toIndex, step)
+        
+        registeredSequences[seqIndex] = sequence.copy(steps = newSteps)
+        saveSequences()
+        reanalyzeAllFlows()
+    }
+
+    fun addStep(sequenceId: String, pattern: LogPattern) {
+        val seqIndex = registeredSequences.indexOfFirst { it.id == sequenceId }
+        if (seqIndex == -1) return
+        
+        val sequence = registeredSequences[seqIndex]
+        val newSteps = sequence.steps.toMutableList()
+        newSteps.add(FlowStep(pattern))
+        
+        registeredSequences[seqIndex] = sequence.copy(steps = newSteps)
+        saveSequences()
+        reanalyzeAllFlows()
+    }
+
+    fun removeStep(sequenceId: String, stepIndex: Int) {
+        val seqIndex = registeredSequences.indexOfFirst { it.id == sequenceId }
+        if (seqIndex == -1) return
+        
+        val sequence = registeredSequences[seqIndex]
+        if (stepIndex !in sequence.steps.indices) return
+        
+        val newSteps = sequence.steps.toMutableList()
+        newSteps.removeAt(stepIndex)
+        
+        registeredSequences[seqIndex] = sequence.copy(steps = newSteps)
+        saveSequences()
+        reanalyzeAllFlows()
+    }
+
+    fun updateStep(sequenceId: String, stepIndex: Int, updatedStep: FlowStep) {
+        val seqIndex = registeredSequences.indexOfFirst { it.id == sequenceId }
+        if (seqIndex == -1) return
+        
+        val sequence = registeredSequences[seqIndex]
+        if (stepIndex !in sequence.steps.indices) return
+        
+        val newSteps = sequence.steps.toMutableList()
+        newSteps[stepIndex] = updatedStep
+        
+        registeredSequences[seqIndex] = sequence.copy(steps = newSteps)
+        saveSequences()
+        reanalyzeAllFlows()
     }
 
     private fun saveSequences() {
