@@ -30,6 +30,7 @@ fun FilterBar(
     loadedFiles: List<String>,
     onAddFilter: (String, FilterType, FilterField) -> Unit,
     onRemoveFilter: (String) -> Unit,
+    onUpdateFilter: (LogFilter) -> Unit,
     onRemoveFile: (String) -> Unit,
     onAddFile: () -> Unit
 ) {
@@ -83,20 +84,20 @@ fun FilterBar(
 
         // PID and TID share a line
         Row(modifier = Modifier.fillMaxWidth()) {
-            FilterSection("PID", FilterField.PID, filters, onAddFilter, onRemoveFilter, Modifier.weight(1f))
+            FilterSection("PID", FilterField.PID, filters, onAddFilter, onRemoveFilter, onUpdateFilter, Modifier.weight(1f))
             Spacer(modifier = Modifier.width(20.dp))
-            FilterSection("TID", FilterField.TID, filters, onAddFilter, onRemoveFilter, Modifier.weight(1f))
+            FilterSection("TID", FilterField.TID, filters, onAddFilter, onRemoveFilter, onUpdateFilter, Modifier.weight(1f))
         }
         
         Spacer(modifier = Modifier.height(12.dp))
         
         // TAG takes full width
-        FilterSection("TAG", FilterField.TAG, filters, onAddFilter, onRemoveFilter)
+        FilterSection("TAG", FilterField.TAG, filters, onAddFilter, onRemoveFilter, onUpdateFilter)
         
         Spacer(modifier = Modifier.height(12.dp))
         
         // Message takes full width
-        FilterSection("Msg", FilterField.MESSAGE, filters, onAddFilter, onRemoveFilter)
+        FilterSection("Msg", FilterField.MESSAGE, filters, onAddFilter, onRemoveFilter, onUpdateFilter)
     }
 }
 
@@ -107,6 +108,7 @@ fun FilterSection(
     allFilters: List<LogFilter>,
     onAddFilter: (String, FilterType, FilterField) -> Unit,
     onRemoveFilter: (String) -> Unit,
+    onUpdateFilter: (LogFilter) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Row(modifier = modifier, verticalAlignment = Alignment.Top) {
@@ -126,7 +128,8 @@ fun FilterSection(
                 filters = allFilters.filter { it.field == field && it.type == FilterType.INCLUDE },
                 color = Color(0xFF43A047),
                 onAdd = onAddFilter,
-                onRemove = onRemoveFilter
+                onRemove = onRemoveFilter,
+                onUpdate = onUpdateFilter
             )
             Spacer(modifier = Modifier.height(4.dp))
             FilterArea(
@@ -136,7 +139,8 @@ fun FilterSection(
                 filters = allFilters.filter { it.field == field && it.type == FilterType.EXCLUDE },
                 color = Color(0xFFE53935),
                 onAdd = onAddFilter,
-                onRemove = onRemoveFilter
+                onRemove = onRemoveFilter,
+                onUpdate = onUpdateFilter
             )
         }
     }
@@ -151,7 +155,8 @@ fun FilterArea(
     filters: List<LogFilter>,
     color: Color,
     onAdd: (String, FilterType, FilterField) -> Unit,
-    onRemove: (String) -> Unit
+    onRemove: (String) -> Unit,
+    onUpdate: (LogFilter) -> Unit
 ) {
     var text by remember { mutableStateOf("") }
     
@@ -170,7 +175,7 @@ fun FilterArea(
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             filters.forEach { filter ->
-                InlineFilterChip(filter, onRemove)
+                InlineFilterChip(filter, onRemove, onUpdate)
             }
             
             Box(modifier = Modifier.widthIn(min = 60.dp).height(28.dp).padding(vertical = 4.dp), contentAlignment = Alignment.CenterStart) {
@@ -224,25 +229,58 @@ fun FilterArea(
 @Composable
 fun InlineFilterChip(
     filter: LogFilter,
-    onRemove: (String) -> Unit
+    onRemove: (String) -> Unit,
+    onUpdate: (LogFilter) -> Unit
 ) {
+    var isEditing by remember { mutableStateOf(false) }
+    var editText by remember { mutableStateOf(filter.text) }
     val backgroundColor = if (filter.type == FilterType.INCLUDE) Color(0xFF2E7D32) else Color(0xFFC62828)
     
     Surface(
         color = backgroundColor.copy(alpha = 0.8f),
         shape = RoundedCornerShape(4.dp),
-        modifier = Modifier.height(24.dp)
+        modifier = Modifier
+            .height(24.dp)
+            .clickable { if (!isEditing) isEditing = true }
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = filter.text,
-                color = Color.White,
-                fontSize = 10.sp,
-                fontWeight = FontWeight.Medium
-            )
+            if (isEditing) {
+                BasicTextField(
+                    value = editText,
+                    onValueChange = { editText = it },
+                    modifier = Modifier.widthIn(min = 20.dp, max = 150.dp).onKeyEvent {
+                        if (it.key == Key.Enter && it.type == KeyEventType.KeyUp) {
+                            if (editText.isNotBlank()) {
+                                onUpdate(filter.copy(text = editText))
+                                isEditing = false
+                            }
+                            true
+                        } else if (it.key == Key.Escape) {
+                            editText = filter.text
+                            isEditing = false
+                            true
+                        } else false
+                    },
+                    textStyle = androidx.compose.ui.text.TextStyle(
+                        color = Color.White,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Medium
+                    ),
+                    singleLine = true,
+                    cursorBrush = androidx.compose.ui.graphics.SolidColor(Color.White)
+                )
+            } else {
+                Text(
+                    text = filter.text,
+                    color = Color.White,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+            
             Spacer(modifier = Modifier.width(4.dp))
             Icon(
                 Icons.Default.Close,

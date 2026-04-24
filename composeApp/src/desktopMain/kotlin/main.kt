@@ -237,6 +237,7 @@ fun App(viewModel: LogViewModel = viewModel { LogViewModel() }) {
                             loadedFiles = viewModel.loadedFiles,
                             onAddFilter = { text, type, field -> viewModel.addFilter(text, type, field) },
                             onRemoveFilter = { id -> viewModel.removeFilter(id) },
+                            onUpdateFilter = { viewModel.updateFilter(it.id, it) },
                             onRemoveFile = { viewModel.removeLogFile(it) },
                             onAddFile = {
                                 val dialog = FileDialog(null as java.awt.Frame?, "Select Log File", FileDialog.LOAD)
