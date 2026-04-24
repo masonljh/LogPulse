@@ -2,6 +2,7 @@ package com.antdev.logpulse.domain.usecase
 
 import com.antdev.logpulse.data.parser.AndroidLogParser
 import com.antdev.logpulse.domain.model.*
+import kotlinx.coroutines.runBlocking
 import kotlin.test.*
 
 class AnalyzeFlowsUseCaseTest {
@@ -32,11 +33,13 @@ class AnalyzeFlowsUseCaseTest {
         """.trimIndent()
         
         val logs = parser.parse(logContent)
-        val traces = analyzeUseCase.analyzeIncremental(
-            newLogs = logs,
-            existingFlows = emptyList(),
-            sequences = listOf(orderProcessingSequence)
-        )
+        val traces = runBlocking {
+            analyzeUseCase.analyzeIncremental(
+                newLogs = logs,
+                existingFlows = emptyList(),
+                sequences = listOf(orderProcessingSequence)
+            )
+        }
         
         assertEquals(1, traces.size, "Should find one flow trace for flow_001")
         val trace = traces[0]
@@ -53,11 +56,13 @@ class AnalyzeFlowsUseCaseTest {
         """.trimIndent()
         
         val logs = parser.parse(logContent)
-        val traces = analyzeUseCase.analyzeIncremental(
-            newLogs = logs,
-            existingFlows = emptyList(),
-            sequences = listOf(orderProcessingSequence)
-        )
+        val traces = runBlocking {
+            analyzeUseCase.analyzeIncremental(
+                newLogs = logs,
+                existingFlows = emptyList(),
+                sequences = listOf(orderProcessingSequence)
+            )
+        }
         
         assertEquals(1, traces.size)
         val trace = traces[0]
@@ -81,7 +86,7 @@ class AnalyzeFlowsUseCaseTest {
         """.trimIndent()
         
         val logs = parser.parse(logContent)
-        val traces = analyzeUseCase.analyzeIncremental(logs, emptyList(), listOf(orderProcessingSequence))
+        val traces = runBlocking { analyzeUseCase.analyzeIncremental(logs, emptyList(), listOf(orderProcessingSequence)) }
         
         // Should have 2 separate traces for flow_001
         assertEquals(2, traces.size, "Should have 2 separate instances for flow_001")
@@ -111,7 +116,7 @@ class AnalyzeFlowsUseCaseTest {
         sb.append("04-17 00:00:02.000  1000  5000 I Tag: End\n")
 
         val logs = parser.parse(sb.toString())
-        val traces = analyzeUseCase.analyzeIncremental(logs, emptyList(), listOf(sequence))
+        val traces = runBlocking { analyzeUseCase.analyzeIncremental(logs, emptyList(), listOf(sequence)) }
 
         assertEquals(1, traces.size, "Should detect flow despite 3300 lines of gap")
         assertTrue(traces[0].status is FlowStatus.Complete)
@@ -139,7 +144,7 @@ class AnalyzeFlowsUseCaseTest {
         """.trimIndent()
 
         val logs = parser.parse(logData)
-        val traces = analyzeUseCase.analyzeIncremental(logs, emptyList(), listOf(sequence))
+        val traces = runBlocking { analyzeUseCase.analyzeIncremental(logs, emptyList(), listOf(sequence)) }
 
         assertEquals(2, traces.size, "Should handle interleaved flows correctly")
         assertTrue(traces.all { it.status is FlowStatus.Complete })
@@ -163,7 +168,7 @@ class AnalyzeFlowsUseCaseTest {
         """.trimIndent()
 
         val logs = parser.parse(logContent)
-        val traces = analyzeUseCase.analyzeIncremental(logs, emptyList(), listOf(sequence))
+        val traces = runBlocking { analyzeUseCase.analyzeIncremental(logs, emptyList(), listOf(sequence)) }
 
         assertEquals(1, traces.size)
         assertEquals("task_99", traces[0].id, "ID should have transitioned from thread_... to task_99")
@@ -186,12 +191,12 @@ class AnalyzeFlowsUseCaseTest {
         val logB = parser.parse("04-17 00:00:02.000  1000  5000 I T: B")
 
         // First analysis with Log A
-        val traces1 = analyzeUseCase.analyzeIncremental(logA, emptyList(), listOf(sequence))
+        val traces1 = runBlocking { analyzeUseCase.analyzeIncremental(logA, emptyList(), listOf(sequence)) }
         assertEquals(1, traces1.size)
         assertEquals(1, traces1[0].logs.size)
 
         // Second analysis with Log B (Passing traces1 as existing)
-        val traces2 = analyzeUseCase.analyzeIncremental(logB, traces1, listOf(sequence))
+        val traces2 = runBlocking { analyzeUseCase.analyzeIncremental(logB, traces1, listOf(sequence)) }
         
         // CRITICAL: traces2 should ONLY have one trace (the updated one)
         assertEquals(1, traces2.size, "Should NOT have duplicate entries for the same flow instance")
@@ -226,7 +231,7 @@ class AnalyzeFlowsUseCaseTest {
         }
 
         val logs = parser.parse(sb.toString())
-        val traces = analyzeUseCase.analyzeIncremental(logs, emptyList(), listOf(sequence))
+        val traces = runBlocking { analyzeUseCase.analyzeIncremental(logs, emptyList(), listOf(sequence)) }
 
         println("--- Found ${traces.size} traces ---")
         traces.forEachIndexed { index, trace ->
@@ -257,7 +262,7 @@ class AnalyzeFlowsUseCaseTest {
         """.trimIndent()
 
         val logs = parser.parse(logData)
-        val traces = analyzeUseCase.analyzeIncremental(logs, emptyList(), listOf(sequence))
+        val traces = runBlocking { analyzeUseCase.analyzeIncremental(logs, emptyList(), listOf(sequence)) }
 
         // There should be 2 traces:
         // 1. Just "Init" (InProgress or potentially Failed if we define it so, but here it's just InProgress)

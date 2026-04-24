@@ -2,6 +2,7 @@ package com.antdev.logpulse.domain.usecase
 
 import com.antdev.logpulse.domain.engine.LogPatternMatcher
 import com.antdev.logpulse.domain.model.*
+import kotlinx.coroutines.yield
 
 class AnalyzeFlowsUseCase(
     private val matcher: LogPatternMatcher = LogPatternMatcher()
@@ -10,7 +11,7 @@ class AnalyzeFlowsUseCase(
      * Incremental analysis: Analyzes new logs and merges into existing flows.
      * Supports multiple instances per ID.
      */
-    fun analyzeIncremental(
+    suspend fun analyzeIncremental(
         newLogs: List<LogEvent>,
         existingFlows: List<FlowTrace>,
         sequences: List<SequencePattern>,
@@ -39,6 +40,7 @@ class AnalyzeFlowsUseCase(
 
         newLogs.forEachIndexed { logIndex, log ->
             if (logIndex % 1000 == 0) {
+                yield()
                 onProgress?.invoke(logIndex.toFloat() / newLogs.size)
             }
 

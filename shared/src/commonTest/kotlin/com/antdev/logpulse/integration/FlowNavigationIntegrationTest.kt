@@ -4,6 +4,7 @@ import com.antdev.logpulse.data.parser.AndroidLogParser
 import com.antdev.logpulse.domain.model.*
 import com.antdev.logpulse.domain.usecase.AnalyzeFlowsUseCase
 import com.antdev.logpulse.domain.usecase.MergeLogsUseCase
+import kotlinx.coroutines.runBlocking
 import kotlin.test.*
 
 class FlowNavigationIntegrationTest {
@@ -38,7 +39,7 @@ class FlowNavigationIntegrationTest {
         
         // Simulating the ViewModel flow: Merge -> Analyze
         val mergedLogs = mergeUseCase(mapOf("test_file" to rawLogs))
-        val traces = analyzeUseCase.analyzeIncremental(mergedLogs, emptyList(), listOf(sequence))
+        val traces = runBlocking { analyzeUseCase.analyzeIncremental(mergedLogs, emptyList(), listOf(sequence)) }
 
         // We expect 3 traces in SEQUENTIAL mode because of the restarts:
         // 1. 00:00:10 (InProgress, because 00:00:12 restarted it)

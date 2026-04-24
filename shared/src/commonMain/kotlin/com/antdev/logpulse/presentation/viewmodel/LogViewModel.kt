@@ -57,6 +57,8 @@ class LogViewModel(
     val registeredSequences = mutableStateListOf<SequencePattern>()
     var flowTraces by mutableStateOf(listOf<FlowTrace>())
         private set
+    
+    private var analysisJob: Job? = null
         
     val logToFlowIndex = mutableStateMapOf<LogEvent, FlowTrace>()
 
@@ -280,9 +282,10 @@ class LogViewModel(
     }
 
     private fun reanalyzeAllFlows() {
-        viewModelScope.launch(Dispatchers.Default) {
+        analysisJob?.cancel()
+        analysisJob = viewModelScope.launch(Dispatchers.Default) {
             statusMessage = "Analyzing flows..."
-            flowTraces = analyzeUseCase.analyzeIncremental(
+            val traces = analyzeUseCase.analyzeIncremental(
                 newLogs = logs.toList(),
                 existingFlows = emptyList(),
                 sequences = registeredSequences.toList(),
@@ -290,6 +293,7 @@ class LogViewModel(
                     analysisProgress = progress
                 }
             )
+            flowTraces = traces
             refreshFlowIndex()
             analysisProgress = 1.0f
             statusMessage = "Analysis complete (${flowTraces.size} flows found)"
