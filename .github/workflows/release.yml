@@ -11,7 +11,7 @@ jobs:
     name: Build and Release (${{ matrix.os }})
     strategy:
       matrix:
-        os: [windows-latest, macos-latest]
+        os: [windows-latest]
     runs-on: ${{ matrix.os }}
     permissions:
       contents: write
@@ -47,7 +47,5 @@ jobs:
           files: |
             composeApp/build/compose/binaries/main/msi/*.msi
             composeApp/build/compose/binaries/main/exe/*.exe
-            composeApp/build/compose/binaries/main/dmg/*.dmg
-            composeApp/build/compose/binaries/main/pkg/*.pkg
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
