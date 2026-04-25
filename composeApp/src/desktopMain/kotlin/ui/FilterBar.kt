@@ -240,54 +240,62 @@ fun InlineFilterChip(
         color = backgroundColor.copy(alpha = 0.8f),
         shape = RoundedCornerShape(4.dp),
         modifier = Modifier
-            .height(24.dp)
+            .height(26.dp) // Slightly taller
             .clickable { if (!isEditing) isEditing = true }
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 6.dp),
+            modifier = Modifier
+                .padding(horizontal = 8.dp)
+                .fillMaxHeight(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            if (isEditing) {
-                BasicTextField(
-                    value = editText,
-                    onValueChange = { editText = it },
-                    modifier = Modifier.widthIn(min = 20.dp, max = 150.dp).onKeyEvent {
-                        if (it.key == Key.Enter && it.type == KeyEventType.KeyUp) {
-                            if (editText.isNotBlank()) {
-                                onUpdate(filter.copy(text = editText))
+            Box(
+                modifier = Modifier.weight(1f, fill = false),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                if (isEditing) {
+                    BasicTextField(
+                        value = editText,
+                        onValueChange = { editText = it },
+                        modifier = Modifier.widthIn(min = 40.dp, max = 250.dp).onKeyEvent {
+                            if (it.key == Key.Enter && it.type == KeyEventType.KeyUp) {
+                                if (editText.isNotBlank()) {
+                                    onUpdate(filter.copy(text = editText))
+                                    isEditing = false
+                                }
+                                true
+                            } else if (it.key == Key.Escape) {
+                                editText = filter.text
                                 isEditing = false
-                            }
-                            true
-                        } else if (it.key == Key.Escape) {
-                            editText = filter.text
-                            isEditing = false
-                            true
-                        } else false
-                    },
-                    textStyle = androidx.compose.ui.text.TextStyle(
+                                true
+                            } else false
+                        },
+                        textStyle = androidx.compose.ui.text.TextStyle(
+                            color = Color.White,
+                            fontSize = 11.sp, // Slightly larger
+                            fontWeight = FontWeight.Medium
+                        ),
+                        singleLine = true,
+                        cursorBrush = androidx.compose.ui.graphics.SolidColor(Color.White)
+                    )
+                } else {
+                    Text(
+                        text = filter.text,
                         color = Color.White,
-                        fontSize = 10.sp,
+                        fontSize = 11.sp, // Slightly larger
                         fontWeight = FontWeight.Medium
-                    ),
-                    singleLine = true,
-                    cursorBrush = androidx.compose.ui.graphics.SolidColor(Color.White)
-                )
-            } else {
-                Text(
-                    text = filter.text,
-                    color = Color.White,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Medium
-                )
+                    )
+                }
             }
             
-            Spacer(modifier = Modifier.width(4.dp))
+            Spacer(modifier = Modifier.width(6.dp))
+            
             Icon(
                 Icons.Default.Close,
                 contentDescription = "Remove",
-                tint = Color.White,
+                tint = Color.White.copy(alpha = 0.8f),
                 modifier = Modifier
-                    .size(12.dp)
+                    .size(14.dp)
                     .clickable { onRemove(filter.id) }
             )
         }

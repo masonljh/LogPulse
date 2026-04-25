@@ -8,6 +8,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -85,8 +87,22 @@ fun AddFlowDialog(
                         StepItem(
                             step = step,
                             colors = textFieldColors,
+                            isFirst = index == 0,
+                            isLast = index == steps.size - 1,
                             onRemove = { if (steps.size > 1) steps.removeAt(index) },
-                            onUpdate = { steps[index] = it }
+                            onUpdate = { steps[index] = it },
+                            onMoveUp = {
+                                if (index > 0) {
+                                    val item = steps.removeAt(index)
+                                    steps.add(index - 1, item)
+                                }
+                            },
+                            onMoveDown = {
+                                if (index < steps.size - 1) {
+                                    val item = steps.removeAt(index)
+                                    steps.add(index + 1, item)
+                                }
+                            }
                         )
                         HorizontalDivider(color = Color.DarkGray, modifier = Modifier.padding(vertical = 8.dp))
                     }
@@ -139,8 +155,12 @@ fun AddFlowDialog(
 fun StepItem(
     step: EditableStep,
     colors: TextFieldColors,
+    isFirst: Boolean,
+    isLast: Boolean,
     onRemove: () -> Unit,
-    onUpdate: (EditableStep) -> Unit
+    onUpdate: (EditableStep) -> Unit,
+    onMoveUp: () -> Unit,
+    onMoveDown: () -> Unit
 ) {
     Column {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -152,8 +172,17 @@ fun StepItem(
                 colors = colors,
                 textStyle = LocalTextStyle.current.copy(color = Color.White, fontSize = 12.sp)
             )
-            IconButton(onClick = onRemove) {
-                Icon(Icons.Default.Delete, contentDescription = "Remove Step", tint = Color(0xFFE53935))
+            
+            Row {
+                IconButton(onClick = onMoveUp, enabled = !isFirst) {
+                    Icon(Icons.Default.ArrowUpward, contentDescription = "Move Up", tint = if (isFirst) Color.DarkGray else Color.White, modifier = Modifier.size(18.dp))
+                }
+                IconButton(onClick = onMoveDown, enabled = !isLast) {
+                    Icon(Icons.Default.ArrowDownward, contentDescription = "Move Down", tint = if (isLast) Color.DarkGray else Color.White, modifier = Modifier.size(18.dp))
+                }
+                IconButton(onClick = onRemove) {
+                    Icon(Icons.Default.Delete, contentDescription = "Remove Step", tint = Color(0xFFE53935), modifier = Modifier.size(18.dp))
+                }
             }
         }
         
