@@ -33,7 +33,7 @@ compose.desktop {
                 org.jetbrains.compose.desktop.application.dsl.TargetFormat.Deb
             )
             packageName = "com.antdev.logpulse"
-            packageVersion = "1.0.0"
+            packageVersion = "0.0.2"
         }
     }
 }
