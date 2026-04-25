@@ -8,8 +8,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowDownward
-import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -175,13 +175,13 @@ fun StepItem(
             
             Row {
                 IconButton(onClick = onMoveUp, enabled = !isFirst) {
-                    Icon(Icons.Default.ArrowUpward, contentDescription = "Move Up", tint = if (isFirst) Color.DarkGray else Color.White, modifier = Modifier.size(18.dp))
+                    Icon(imageVector = Icons.Default.KeyboardArrowUp, contentDescription = "Move Up", tint = if (isFirst) Color.DarkGray else Color.White, modifier = Modifier.size(18.dp))
                 }
                 IconButton(onClick = onMoveDown, enabled = !isLast) {
-                    Icon(Icons.Default.ArrowDownward, contentDescription = "Move Down", tint = if (isLast) Color.DarkGray else Color.White, modifier = Modifier.size(18.dp))
+                    Icon(imageVector = Icons.Default.KeyboardArrowDown, contentDescription = "Move Down", tint = if (isLast) Color.DarkGray else Color.White, modifier = Modifier.size(18.dp))
                 }
                 IconButton(onClick = onRemove) {
-                    Icon(Icons.Default.Delete, contentDescription = "Remove Step", tint = Color(0xFFE53935), modifier = Modifier.size(18.dp))
+                    Icon(imageVector = Icons.Default.Delete, contentDescription = "Remove Step", tint = Color(0xFFE53935), modifier = Modifier.size(18.dp))
                 }
             }
         }

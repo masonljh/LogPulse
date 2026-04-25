@@ -4,6 +4,7 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -14,6 +15,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.*
 import androidx.compose.ui.text.font.FontWeight
@@ -159,6 +162,8 @@ fun FilterArea(
     onUpdate: (LogFilter) -> Unit
 ) {
     var text by remember { mutableStateOf("") }
+    val focusRequester = remember { FocusRequester() }
+    val interactionSource = remember { MutableInteractionSource() }
     
     Row(
         modifier = Modifier
@@ -166,6 +171,12 @@ fun FilterArea(
             .heightIn(min = 36.dp)
             .background(Color(0xFF3C3C3C), RoundedCornerShape(4.dp))
             .border(0.5.dp, color.copy(alpha = 0.4f), RoundedCornerShape(4.dp))
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null // No ripple for the whole box, just focus
+            ) { 
+                focusRequester.requestFocus() 
+            }
             .padding(start = 8.dp, end = 4.dp, top = 2.dp, bottom = 2.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -186,7 +197,7 @@ fun FilterArea(
                 BasicTextField(
                     value = text,
                     onValueChange = { text = it },
-                    modifier = Modifier.onKeyEvent {
+                    modifier = Modifier.focusRequester(focusRequester).onKeyEvent {
                         if (it.key == Key.Enter && it.type == KeyEventType.KeyUp) {
                             if (text.isNotBlank()) {
                                 onAdd(text, type, field)
@@ -240,12 +251,12 @@ fun InlineFilterChip(
         color = backgroundColor.copy(alpha = 0.8f),
         shape = RoundedCornerShape(4.dp),
         modifier = Modifier
-            .height(26.dp) // Slightly taller
+            .height(24.dp) // Back to compact height
             .clickable { if (!isEditing) isEditing = true }
     ) {
         Row(
             modifier = Modifier
-                .padding(horizontal = 8.dp)
+                .padding(horizontal = 6.dp)
                 .fillMaxHeight(),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -257,7 +268,7 @@ fun InlineFilterChip(
                     BasicTextField(
                         value = editText,
                         onValueChange = { editText = it },
-                        modifier = Modifier.widthIn(min = 40.dp, max = 250.dp).onKeyEvent {
+                        modifier = Modifier.widthIn(min = 20.dp, max = 150.dp).onKeyEvent {
                             if (it.key == Key.Enter && it.type == KeyEventType.KeyUp) {
                                 if (editText.isNotBlank()) {
                                     onUpdate(filter.copy(text = editText))
@@ -272,7 +283,7 @@ fun InlineFilterChip(
                         },
                         textStyle = androidx.compose.ui.text.TextStyle(
                             color = Color.White,
-                            fontSize = 11.sp, // Slightly larger
+                            fontSize = 10.sp, // Back to standard size
                             fontWeight = FontWeight.Medium
                         ),
                         singleLine = true,
@@ -282,7 +293,7 @@ fun InlineFilterChip(
                     Text(
                         text = filter.text,
                         color = Color.White,
-                        fontSize = 11.sp, // Slightly larger
+                        fontSize = 10.sp, // Back to standard size
                         fontWeight = FontWeight.Medium
                     )
                 }

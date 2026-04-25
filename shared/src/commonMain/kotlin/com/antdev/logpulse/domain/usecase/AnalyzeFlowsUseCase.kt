@@ -19,24 +19,20 @@ class AnalyzeFlowsUseCase(
     ): List<FlowTrace> {
         if (sequences.isEmpty()) return emptyList()
 
-        val allPatterns = sequences.flatMap { it.steps.map { s -> s.pattern } }.distinct()
+        // 1. Group existing flows by sequence only (no ID grouping)
+        val allFlowsBySeq = sequences.associate { it.id to mutableListOf<FlowTrace>() }
+        existingFlows.forEach { allFlowsBySeq[it.sequence.id]?.add(it) }
 
-        val flowsBySeqAndId = existingFlows.groupBy { it.sequence.id }
-            .mapValues { (_, traces) -> 
-                traces.groupBy { it.id }.mapValues { (_, list) -> list.toMutableList() }.toMutableMap()
-            }.toMutableMap()
-
-        val activeFlowsBySeq = sequences.associate { it.id to mutableListOf<FlowTrace>() }
-        
-        existingFlows.filter { it.status is FlowStatus.InProgress }.forEach { trace ->
-            activeFlowsBySeq[trace.sequence.id]?.add(trace)
-        }
+        // 2. Track the latest active flow for each sequence
+        val activeFlowBySeq = sequences.associate { it.id to allFlowsBySeq[it.id]?.lastOrNull { t -> t.status is FlowStatus.InProgress } }.toMutableMap()
 
         val activeSequences = sequences.filter { it.isEnabled }
         if (activeSequences.isEmpty()) {
             onProgress?.invoke(1.0f)
             return existingFlows
         }
+
+        val allPatterns = sequences.flatMap { it.steps.map { s -> s.pattern } }.distinct()
 
         newLogs.forEachIndexed { logIndex, log ->
             if (logIndex % 1000 == 0) {
@@ -47,115 +43,83 @@ class AnalyzeFlowsUseCase(
             val matches = allPatterns.associateWith { matcher.match(log, it) }
 
             activeSequences.forEach { sequence ->
-                val seqMap = flowsBySeqAndId.getOrPut(sequence.id) { mutableMapOf() }
-                val activeFlows = activeFlowsBySeq[sequence.id]!!
+                val activeTrace = activeFlowBySeq[sequence.id]
+                val seqFlows = allFlowsBySeq[sequence.id]!!
                 
-                var processed = false
-
-                // 1. Try to append to existing active flows (latest first)
-                // We ONLY append if the log matches what the flow is currently waiting for.
-                val it = activeFlows.asReversed().iterator()
-                while (it.hasNext()) {
-                    val traceToAppend = it.next()
-                    val state = calculateState(traceToAppend.logs, sequence)
+                // Check if this log matches ANY step in the current sequence
+                val matchingStepIndex = sequence.steps.indexOfFirst { matches[it.pattern] != null }
+                if (matchingStepIndex != -1) {
+                    val matchedLog = matches[sequence.steps[matchingStepIndex].pattern]!!
                     
-                    val currentStep = sequence.steps.getOrNull(state.stepIndex)
-                    val nextStep = sequence.steps.getOrNull(state.stepIndex + 1)
-                    
-                    // Check if it matches current step (repetition) or next step
-                    val matchedCurrent = if (currentStep != null) matches[currentStep.pattern] else null
-                    val matchedNext = if (nextStep != null && state.matchCount >= currentStep!!.minCount) matches[nextStep.pattern] else null
-                    
-                    // Prioritize next step if both match
-                    val bestMatched = matchedNext ?: matchedCurrent
-                    
-                    if (bestMatched != null) {
-                        // If it's Step 0 and we are at the very beginning, 
-                        // we should usually start a NEW flow instead of appending to current Step 0,
-                        // UNLESS Step 0 is repeatable (maxCount != 1).
-                        if (state.stepIndex == 0 && state.matchCount > 0 && sequence.steps[0].maxCount == 1 && matchedCurrent != null && matchedNext == null) {
-                            // This is a "Restart" case. Don't append here, let Step 2 (Start new) handle it.
-                            continue
-                        }
+                    var processed = false
 
-                        // Append!
-                        val updatedLogs = traceToAppend.logs + bestMatched
-                        val newState = calculateState(updatedLogs, sequence)
+                    if (activeTrace != null) {
+                        val state = calculateState(activeTrace.logs, sequence)
+                        val currentStep = sequence.steps.getOrNull(state.stepIndex)
+                        val nextStep = sequence.steps.getOrNull(state.stepIndex + 1)
                         
-                        val currentList = seqMap[traceToAppend.id]
-                        currentList?.removeIf { it === traceToAppend }
-
-                        val finalId = if (traceToAppend.id.startsWith("thread_") && bestMatched.extractedId != null) {
-                            bestMatched.extractedId 
-                        } else {
-                            traceToAppend.id
-                        }
+                        val isMatchedCurrent = matchingStepIndex == state.stepIndex
+                        val isMatchedNext = nextStep != null && matchingStepIndex == (state.stepIndex + 1) && state.matchCount >= currentStep!!.minCount
                         
-                        val updatedTrace = traceToAppend.copy(
-                            id = finalId,
-                            logs = updatedLogs,
-                            status = newState.status
-                        )
-                        
-                        seqMap.getOrPut(finalId) { mutableListOf() }.add(updatedTrace)
-                        
-                        it.remove() // Remove from active (reversed)
-                        if (updatedTrace.status is FlowStatus.InProgress) {
-                            activeFlows.add(updatedTrace)
-                        }
-                        
-                        processed = true
-                        break
-                    }
-                }
-
-                // 2. Start new flow (Step 0)
-                if (!processed) {
-                    val step0 = sequence.steps[0]
-                    val matched0 = matches[step0.pattern]
-                    if (matched0 != null) {
-                        val finalId = matched0.extractedId ?: "thread_${log.pid}_${log.tid}"
-                        val newTrace = FlowTrace(
-                            id = finalId,
-                            sequence = sequence,
-                            logs = listOf(matched0),
-                            status = calculateStatus(listOf(matched0), sequence)
-                        )
-                        seqMap.getOrPut(finalId) { mutableListOf() }.add(newTrace)
-                        
-                        if (newTrace.status is FlowStatus.InProgress) {
-                            activeFlows.add(newTrace)
-                        }
-                        processed = true
-                    }
-                }
-                
-                // 3. Fallback: Partial start (ID match)
-                if (!processed) {
-                    for (stepIndex in 1 until sequence.steps.size) {
-                        val step = sequence.steps[stepIndex]
-                        val matched = matches[step.pattern]
-                        if (matched != null && matched.extractedId != null) {
-                            val newTrace = FlowTrace(
-                                id = matched.extractedId,
-                                sequence = sequence,
-                                logs = listOf(matched),
-                                status = calculateStatus(listOf(matched), sequence)
-                            )
-                            seqMap.getOrPut(matched.extractedId) { mutableListOf() }.add(newTrace)
-                            if (newTrace.status is FlowStatus.InProgress) {
-                                activeFlows.add(newTrace)
+                        if (isMatchedNext || isMatchedCurrent) {
+                            // Valid progression or repetition
+                            // Special case: Step 0 restart
+                            if (matchingStepIndex == 0 && state.matchCount > 0 && sequence.steps[0].maxCount == 1) {
+                                // Mark old as failed/terminated and start new
+                                val failedTrace = activeTrace.copy(
+                                    status = FlowStatus.Failed("Restarted by new '${sequence.steps[0].pattern.name}'")
+                                )
+                                seqFlows[seqFlows.indexOf(activeTrace)] = failedTrace
+                                
+                                val newTrace = FlowTrace(
+                                    id = matchedLog.extractedId ?: "trace_${log.timestamp}",
+                                    sequence = sequence,
+                                    logs = listOf(matchedLog),
+                                    status = calculateStatus(listOf(matchedLog), sequence)
+                                )
+                                seqFlows.add(newTrace)
+                                activeFlowBySeq[sequence.id] = if (newTrace.status is FlowStatus.InProgress) newTrace else null
+                            } else {
+                                // Append
+                                val updatedLogs = activeTrace.logs + matchedLog
+                                val newState = calculateState(updatedLogs, sequence)
+                                val updatedTrace = activeTrace.copy(
+                                    id = matchedLog.extractedId ?: activeTrace.id, // Keep extracted ID
+                                    logs = updatedLogs,
+                                    status = newState.status
+                                )
+                                seqFlows[seqFlows.indexOf(activeTrace)] = updatedTrace
+                                activeFlowBySeq[sequence.id] = if (updatedTrace.status is FlowStatus.InProgress) updatedTrace else null
                             }
                             processed = true
-                            break
+                        } else {
+                            // STRICT RULE: Belongs to sequence but NOT current/next step -> FAIL
+                            val failedTrace = activeTrace.copy(
+                                status = FlowStatus.Failed("Unexpected step '${sequence.steps[matchingStepIndex].pattern.name}' appeared out of order")
+                            )
+                            seqFlows[seqFlows.indexOf(activeTrace)] = failedTrace
+                            activeFlowBySeq[sequence.id] = null
+                            // Continue to see if this log can start a NEW flow
                         }
+                    }
+
+                    // Start new flow if not processed (or if we just failed the previous one)
+                    if (!processed && matchingStepIndex == 0) {
+                        val newTrace = FlowTrace(
+                            id = matchedLog.extractedId ?: "trace_${log.timestamp}",
+                            sequence = sequence,
+                            logs = listOf(matchedLog),
+                            status = calculateStatus(listOf(matchedLog), sequence)
+                        )
+                        seqFlows.add(newTrace)
+                        activeFlowBySeq[sequence.id] = if (newTrace.status is FlowStatus.InProgress) newTrace else null
                     }
                 }
             }
         }
 
         onProgress?.invoke(1.0f)
-        return flowsBySeqAndId.values.flatMap { it.values.flatten() }
+        return allFlowsBySeq.values.flatten()
             .sortedBy { it.logs.firstOrNull()?.log?.timestamp ?: "" }
     }
 

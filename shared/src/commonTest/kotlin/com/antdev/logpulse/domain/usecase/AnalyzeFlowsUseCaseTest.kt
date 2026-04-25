@@ -146,8 +146,15 @@ class AnalyzeFlowsUseCaseTest {
         val logs = parser.parse(logData)
         val traces = runBlocking { analyzeUseCase.analyzeIncremental(logs, emptyList(), listOf(sequence)) }
 
-        assertEquals(2, traces.size, "Should handle interleaved flows correctly")
-        assertTrue(traces.all { it.status is FlowStatus.Complete })
+        // In strict sequential mode without IDs:
+        // 1. Start (5001) -> Trace 1 InProgress
+        // 2. Start (5002) -> Step 0 restart. Trace 1 Fails. Trace 2 InProgress.
+        // 3. End (5001) -> Matches End. Trace 2 Complete.
+        // 4. End (5002) -> Matches End. No active trace.
+        
+        assertEquals(2, traces.size)
+        assertTrue(traces[0].status is FlowStatus.Failed)
+        assertTrue(traces[1].status is FlowStatus.Complete)
     }
 
     @Test
@@ -265,14 +272,14 @@ class AnalyzeFlowsUseCaseTest {
         val traces = runBlocking { analyzeUseCase.analyzeIncremental(logs, emptyList(), listOf(sequence)) }
 
         // There should be 2 traces:
-        // 1. Just "Init" (InProgress or potentially Failed if we define it so, but here it's just InProgress)
+        // 1. Just "Init" (Failed because of restart)
         // 2. "Init" + "Sync" (Complete)
         assertEquals(2, traces.size, "Should have 2 traces due to restart")
         
         val completeCount = traces.count { it.status is FlowStatus.Complete }
         assertEquals(1, completeCount, "Only the second flow should be Complete")
         
-        val inProgressCount = traces.count { it.status is FlowStatus.InProgress }
-        assertEquals(1, inProgressCount, "The first flow should stay InProgress")
+        val failedCount = traces.count { it.status is FlowStatus.Failed }
+        assertEquals(1, failedCount, "The first flow should be marked as Failed/Restarted")
     }
 }
