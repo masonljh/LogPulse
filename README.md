@@ -1,6 +1,6 @@
 # LogPulse
 
-LogPulse는 Android 로그를 효율적으로 분석하고 시각화하기 위한 고성능 데스크톱 애플리케이션입니다. Kotlin Multiplatform(KMP)과 Compose Multiplatform을 기반으로 구축되었습니다.
+LogPulse는 다양한 시스템 및 서버 로그를 효율적으로 분석하고 시각화하기 위한 고성능 데스크톱 애플리케이션입니다. Kotlin Multiplatform(KMP)과 Compose Multiplatform을 기반으로 구축되었습니다.
 
 다만 현재는 아직 베타버전이라는 점을 감안해주시고, 현재 많은 버그와 기능 개선 이슈가 있다는 점 양해 부탁드립니다.
 
