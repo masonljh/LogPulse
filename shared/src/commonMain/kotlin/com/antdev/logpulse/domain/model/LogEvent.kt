@@ -2,6 +2,7 @@ package com.antdev.logpulse.domain.model
 
 data class LogEvent(
     val id: String,
+    val lineIndex: Int = 0,
     val timestamp: String,
     val level: LogLevel,
     val tag: String,

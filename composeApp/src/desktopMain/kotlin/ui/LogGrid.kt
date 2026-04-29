@@ -12,6 +12,7 @@ import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.foundation.LocalScrollbarStyle
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -42,7 +43,8 @@ fun LogGrid(
     onLogClicked: (LogEvent, Boolean, Boolean) -> Unit,
     state: LazyListState,
     logToFlowIndex: Map<LogEvent, FlowTrace>,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    showSourceColumn: Boolean = true
 ) {
     Box(modifier = modifier.fillMaxSize().background(Color(0xFF1E1E1E))) {
         CompositionLocalProvider(LocalContentColor provides Color.White) {
@@ -56,18 +58,23 @@ fun LogGrid(
                 ) { index ->
                     val log = logs[index]
                     LogTableRow(
+                        index = log.lineIndex + 1,
                         log = log,
                         isSelected = selectedLogIds.contains(log.id),
                         isHighlighted = log == highlightedLog,
                         flowTrace = logToFlowIndex[log],
-                        onClicked = { ctrl, shift -> onLogClicked(log, ctrl, shift) }
+                        onClicked = { ctrl, shift -> onLogClicked(log, ctrl, shift) },
+                        showSourceColumn = showSourceColumn
                     )
                 }
             }
-            
             VerticalScrollbar(
                 modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight(),
-                adapter = rememberScrollbarAdapter(state)
+                adapter = rememberScrollbarAdapter(state),
+                style = LocalScrollbarStyle.current.copy(
+                    unhoverColor = Color.White.copy(alpha = 0.4f),
+                    hoverColor = Color.White.copy(alpha = 0.7f)
+                )
             )
         }
     }
@@ -76,11 +83,13 @@ fun LogGrid(
 
 @Composable
 fun LogTableRow(
+    index: Int,
     log: LogEvent,
     isSelected: Boolean,
     isHighlighted: Boolean,
     flowTrace: FlowTrace?,
-    onClicked: (Boolean, Boolean) -> Unit
+    onClicked: (Boolean, Boolean) -> Unit,
+    showSourceColumn: Boolean
 ) {
     val levelColor = log.level.toColor()
     
@@ -139,6 +148,18 @@ fun LogTableRow(
     ) {
         Spacer(modifier = Modifier.width(12.dp))
 
+        // Line Number
+        Text(
+            text = index.toString(),
+            color = Color(0xFF777777),
+            fontSize = 11.sp,
+            fontFamily = FontFamily.Monospace,
+            modifier = Modifier.width(50.dp),
+            textAlign = androidx.compose.ui.text.style.TextAlign.End
+        )
+
+        Spacer(modifier = Modifier.width(8.dp))
+
         // Time
         Text(
             text = log.timestamp,
@@ -184,18 +205,6 @@ fun LogTableRow(
 
         Spacer(modifier = Modifier.width(8.dp))
 
-        // Source
-        Text(
-            text = log.source,
-            color = Color(0xFF64B5F6),
-            fontSize = 10.sp,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.width(100.dp)
-        )
-
-        Spacer(modifier = Modifier.width(8.dp))
-
         // Message
         Text(
             text = log.message,
@@ -205,5 +214,18 @@ fun LogTableRow(
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f)
         )
+
+        if (showSourceColumn) {
+            Spacer(modifier = Modifier.width(8.dp))
+            // Source
+            Text(
+                text = log.source,
+                color = Color(0xFF64B5F6),
+                fontSize = 10.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.width(100.dp)
+            )
+        }
     }
 }

@@ -220,6 +220,26 @@ class LogViewModel(
         return filteredLogs.indexOfFirst { it.id == log.id }
     }
 
+    fun getClosestLogIndexByLineNumber(targetLineNumber: Int): Int {
+        if (filteredLogs.isEmpty()) return -1
+        val targetIndex = targetLineNumber - 1
+        
+        var closestDiff = Int.MAX_VALUE
+        var closestIndex = -1
+        
+        for (i in filteredLogs.indices) {
+            val log = filteredLogs[i]
+            val diff = kotlin.math.abs(log.lineIndex - targetIndex)
+            if (diff < closestDiff) {
+                closestDiff = diff
+                closestIndex = i
+            }
+            if (diff == 0) break // Exact match found
+        }
+        
+        return closestIndex
+    }
+
     private fun matches(log: LogEvent, filter: LogFilter): Boolean {
         val target = when (filter.field) {
             FilterField.PID -> log.pid
@@ -377,18 +397,16 @@ class LogViewModel(
         }
     }
 
-    fun loadLogFile(path: String) {
-        // For backwards compatibility or single file load, clear existing if needed?
-        // Let's make it additive by default now.
-        addLogFile(path)
+    fun loadLogFile(path: String, format: LogFormat = LogFormat.ANDROID_LOGCAT) {
+        addLogFile(path, format)
     }
 
-    fun addLogFile(path: String) {
+    fun addLogFile(path: String, format: LogFormat = LogFormat.ANDROID_LOGCAT) {
         val fileName = File(path).name
         if (loadedFiles.contains(fileName)) return
 
         viewModelScope.launch {
-            parseUseCase(path).collect { result ->
+            parseUseCase(path, format).collect { result ->
                 when (result) {
                     is LogParseResult.Loading -> {
                         statusMessage = "Loading $fileName..."

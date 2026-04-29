@@ -13,6 +13,7 @@ class AndroidLogParser {
 
         return LogEvent(
             id = "${idPrefix}_${lineIndex}",
+            lineIndex = lineIndex,
             timestamp = groups[1],
             pid = groups[2],
             tid = groups[3],

@@ -11,7 +11,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.onExternalDrag
 import androidx.compose.ui.DragData
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
@@ -24,6 +26,7 @@ import ui.FilterBar
 import ui.AddFlowDialog
 import ui.FlowDashboardPane
 import ui.ImportSelectionDialog
+import ui.ParseConfigDialog
 import com.antdev.logpulse.domain.model.*
 import java.awt.FileDialog
 import java.io.File
@@ -42,6 +45,8 @@ fun App(viewModel: LogViewModel = viewModel { LogViewModel() }) {
     // Dialog state
     var showAddFlowDialog by remember { mutableStateOf(false) }
     var editingSequence by remember { mutableStateOf<SequencePattern?>(null) }
+    var showSourceColumn by remember { mutableStateOf(true) }
+    var jumpToLineText by remember { mutableStateOf("") }
 
     if (showAddFlowDialog || editingSequence != null) {
         AddFlowDialog(
@@ -54,6 +59,19 @@ fun App(viewModel: LogViewModel = viewModel { LogViewModel() }) {
                 viewModel.registerSequence(it)
                 showAddFlowDialog = false
                 editingSequence = null
+            }
+        )
+    }
+
+    var pendingLoadFile by remember { mutableStateOf<String?>(null) }
+    
+    if (pendingLoadFile != null) {
+        ParseConfigDialog(
+            filePath = pendingLoadFile!!,
+            onDismiss = { pendingLoadFile = null },
+            onConfirm = { format ->
+                viewModel.loadLogFile(pendingLoadFile!!, format)
+                pendingLoadFile = null
             }
         )
     }
@@ -122,9 +140,9 @@ fun App(viewModel: LogViewModel = viewModel { LogViewModel() }) {
                                     
                                     val file = File(path)
                                     if (file.exists()) {
-                                        viewModel.loadLogFile(file.absolutePath)
+                                        pendingLoadFile = file.absolutePath
                                     } else if (File(rawPath).exists()) {
-                                        viewModel.loadLogFile(File(rawPath).absolutePath)
+                                        pendingLoadFile = File(rawPath).absolutePath
                                     }
                                 }
                             }
@@ -149,7 +167,7 @@ fun App(viewModel: LogViewModel = viewModel { LogViewModel() }) {
                             dialog.isVisible = true
                             if (dialog.file != null) {
                                 val path = File(dialog.directory, dialog.file).absolutePath
-                                viewModel.loadLogFile(path)
+                                pendingLoadFile = path
                             }
                         }) {
                             Icon(Icons.Default.Add, contentDescription = null)
@@ -176,6 +194,50 @@ fun App(viewModel: LogViewModel = viewModel { LogViewModel() }) {
                         }
                         
                         Spacer(Modifier.weight(1f))
+                        
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Checkbox(
+                                checked = showSourceColumn,
+                                onCheckedChange = { showSourceColumn = it }
+                            )
+                            Text("Show Source", color = Color.White, style = MaterialTheme.typography.bodyMedium)
+                        }
+                        
+                        Spacer(Modifier.width(16.dp))
+                        
+                        // Jump to Line feature
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            OutlinedTextField(
+                                value = jumpToLineText,
+                                onValueChange = { jumpToLineText = it.filter { char -> char.isDigit() } },
+                                modifier = Modifier.width(80.dp),
+                                placeholder = { Text("Line", fontSize = 12.sp) },
+                                singleLine = true,
+                                textStyle = LocalTextStyle.current.copy(fontSize = 12.sp)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Button(
+                                onClick = {
+                                    val targetLine = jumpToLineText.toIntOrNull()
+                                    if (targetLine != null) {
+                                        val index = viewModel.getClosestLogIndexByLineNumber(targetLine)
+                                        if (index != -1) {
+                                            scope.launch {
+                                                lazyListState.animateScrollToItem(index)
+                                                viewModel.jumpToLog(viewModel.filteredLogs[index])
+                                                viewModel.onLogSelected(viewModel.filteredLogs[index])
+                                            }
+                                        }
+                                    }
+                                },
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                                modifier = Modifier.height(36.dp)
+                            ) {
+                                Text("Jump", fontSize = 12.sp)
+                            }
+                        }
+                        
+                        Spacer(Modifier.width(16.dp))
                         
                         if (viewModel.loadedFiles.isNotEmpty()) {
                             Text(
@@ -257,7 +319,8 @@ fun App(viewModel: LogViewModel = viewModel { LogViewModel() }) {
                                 onLogClicked = { log, ctrl, shift -> viewModel.onLogClicked(log, ctrl, shift) },
                                 state = lazyListState,
                                 logToFlowIndex = viewModel.logToFlowIndex,
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.weight(1f),
+                                showSourceColumn = showSourceColumn
                             )
                         }
                     }
@@ -270,7 +333,8 @@ fun App(viewModel: LogViewModel = viewModel { LogViewModel() }) {
 fun main() = application {
     Window(
         onCloseRequest = ::exitApplication,
-        title = "LogPulse - MVVM Clean Architecture",
+        title = "LogPulse",
+        icon = painterResource("icon.png"),
         state = rememberWindowState(width = 1400.dp, height = 900.dp)
     ) {
         App()
