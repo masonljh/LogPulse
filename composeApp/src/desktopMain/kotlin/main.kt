@@ -68,10 +68,14 @@ fun App(viewModel: LogViewModel = viewModel { LogViewModel() }) {
     if (pendingLoadFile != null) {
         ParseConfigDialog(
             filePath = pendingLoadFile!!,
+            customFormats = viewModel.customFormats,
             onDismiss = { pendingLoadFile = null },
             onConfirm = { format ->
                 viewModel.loadLogFile(pendingLoadFile!!, format)
                 pendingLoadFile = null
+            },
+            onSaveFormat = { format ->
+                viewModel.saveCustomFormat(format)
             }
         )
     }

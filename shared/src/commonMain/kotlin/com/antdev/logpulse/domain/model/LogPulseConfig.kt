@@ -6,5 +6,6 @@ import kotlinx.serialization.Serializable
 data class LogPulseConfig(
     val version: Int = 1,
     val sequences: List<SequencePattern> = emptyList(),
-    val filters: List<LogFilter> = emptyList()
+    val filters: List<LogFilter> = emptyList(),
+    val customFormats: List<LogFormat> = emptyList()
 )

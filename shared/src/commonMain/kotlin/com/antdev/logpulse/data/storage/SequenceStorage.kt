@@ -1,6 +1,7 @@
 package com.antdev.logpulse.data.storage
 
 import com.antdev.logpulse.domain.model.LogFilter
+import com.antdev.logpulse.domain.model.LogFormat
 import com.antdev.logpulse.domain.model.LogPulseConfig
 import com.antdev.logpulse.domain.model.SequencePattern
 import kotlinx.serialization.encodeToString
@@ -11,7 +12,8 @@ import okio.Path.Companion.toPath
 class SequenceStorage(
     private val fileSystem: FileSystem = FileSystem.SYSTEM,
     private val sequencesFileName: String = "sequences.json",
-    private val filtersFileName: String = "filters.json"
+    private val filtersFileName: String = "filters.json",
+    private val formatsFileName: String = "formats.json"
 ) {
     private val json = Json { 
         prettyPrint = true
@@ -33,6 +35,14 @@ class SequenceStorage(
 
     fun loadFilters(): List<LogFilter> {
         return loadFromFile<List<LogFilter>>(filtersFileName) ?: emptyList()
+    }
+
+    fun saveFormats(formats: List<LogFormat>) {
+        saveToFile(formatsFileName, formats)
+    }
+
+    fun loadFormats(): List<LogFormat> {
+        return loadFromFile<List<LogFormat>>(formatsFileName) ?: emptyList()
     }
 
     fun exportConfig(path: String, config: LogPulseConfig) {

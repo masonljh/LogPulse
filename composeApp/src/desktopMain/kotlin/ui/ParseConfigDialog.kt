@@ -22,8 +22,10 @@ import java.io.File
 @Composable
 fun ParseConfigDialog(
     filePath: String,
+    customFormats: List<LogFormat> = emptyList(),
     onDismiss: () -> Unit,
-    onConfirm: (LogFormat) -> Unit
+    onConfirm: (LogFormat) -> Unit,
+    onSaveFormat: (LogFormat) -> Unit = {}
 ) {
     var selectedPreset by remember { mutableStateOf(LogFormat.ANDROID_LOGCAT) }
     var customPattern by remember { mutableStateOf(selectedPreset.pattern) }
@@ -34,6 +36,7 @@ fun ParseConfigDialog(
     var pidGroup by remember { mutableStateOf(selectedPreset.pidGroup?.toString() ?: "") }
     var tidGroup by remember { mutableStateOf(selectedPreset.tidGroup?.toString() ?: "") }
     var messageGroup by remember { mutableStateOf(selectedPreset.messageGroup?.toString() ?: "") }
+    var customPresetName by remember { mutableStateOf("") }
 
     var expanded by remember { mutableStateOf(false) }
     
@@ -97,13 +100,16 @@ fun ParseConfigDialog(
         pidGroup = preset.pidGroup?.toString() ?: ""
         tidGroup = preset.tidGroup?.toString() ?: ""
         messageGroup = preset.messageGroup?.toString() ?: ""
+        customPresetName = if (LogFormat.PRESETS.contains(preset)) "" else preset.name
     }
+
+    val allPresets = LogFormat.PRESETS + customFormats
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             shape = MaterialTheme.shapes.medium,
             color = MaterialTheme.colorScheme.surface,
-            modifier = Modifier.width(800.dp).height(600.dp)
+            modifier = Modifier.width(800.dp).height(650.dp)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text("Log Parser Configuration", style = MaterialTheme.typography.titleLarge)
@@ -117,9 +123,9 @@ fun ParseConfigDialog(
                             Text(selectedPreset.name)
                         }
                         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                            LogFormat.PRESETS.forEach { preset ->
+                            allPresets.forEach { preset ->
                                 DropdownMenuItem(
-                                    text = { Text(preset.name) },
+                                    text = { Text(preset.name + if (customFormats.contains(preset)) " (Custom)" else "") },
                                     onClick = { 
                                         applyPreset(preset)
                                         expanded = false
@@ -177,6 +183,42 @@ fun ParseConfigDialog(
                 }
                 
                 Spacer(modifier = Modifier.height(16.dp))
+                
+                Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    OutlinedTextField(
+                        value = customPresetName,
+                        onValueChange = { customPresetName = it },
+                        label = { Text("Custom Preset Name") },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Button(
+                        onClick = {
+                            val formatName = customPresetName.takeIf { it.isNotBlank() } ?: "Custom Format ${System.currentTimeMillis()}"
+                            val format = LogFormat(
+                                id = "custom_${System.currentTimeMillis()}",
+                                name = formatName,
+                                pattern = customPattern,
+                                timestampGroup = timestampGroup.toIntOrNull(),
+                                levelGroup = levelGroup.toIntOrNull(),
+                                tagGroup = tagGroup.toIntOrNull(),
+                                pidGroup = pidGroup.toIntOrNull(),
+                                tidGroup = tidGroup.toIntOrNull(),
+                                messageGroup = messageGroup.toIntOrNull()
+                            )
+                            onSaveFormat(format)
+                            selectedPreset = format
+                            customPresetName = format.name
+                        },
+                        enabled = customPattern.isNotBlank()
+                    ) {
+                        Text("Save Preset")
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+                
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                     TextButton(onClick = onDismiss) { Text("Cancel") }
                     Spacer(modifier = Modifier.width(8.dp))

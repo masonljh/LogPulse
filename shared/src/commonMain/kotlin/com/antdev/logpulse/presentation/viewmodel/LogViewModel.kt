@@ -58,6 +58,8 @@ class LogViewModel(
     var flowTraces by mutableStateOf(listOf<FlowTrace>())
         private set
     
+    val customFormats = mutableStateListOf<LogFormat>()
+    
     private var analysisJob: Job? = null
         
     val logToFlowIndex = mutableStateMapOf<LogEvent, FlowTrace>()
@@ -146,8 +148,26 @@ class LogViewModel(
             filters.addAll(savedFilters)
         }
         
+        val savedFormats = storage.loadFormats()
+        if (savedFormats.isNotEmpty()) {
+            customFormats.addAll(savedFormats)
+        }
+        
         // Ensure filters are applied initially
         refreshFilters()
+    }
+
+    fun saveCustomFormat(format: LogFormat) {
+        val index = customFormats.indexOfFirst { it.id == format.id || it.name == format.name }
+        if (index != -1) {
+            customFormats[index] = format
+        } else {
+            val newFormat = if (format.id == "custom_or_preset" || format.id == "custom") {
+                format.copy(id = "custom_${System.currentTimeMillis()}")
+            } else format
+            customFormats.add(newFormat)
+        }
+        storage.saveFormats(customFormats.toList())
     }
 
     fun onLogSelected(log: LogEvent) {
@@ -454,7 +474,8 @@ class LogViewModel(
     fun exportConfig(path: String) {
         val config = LogPulseConfig(
             sequences = registeredSequences.toList(),
-            filters = filters.toList()
+            filters = filters.toList(),
+            customFormats = customFormats.toList()
         )
         storage.exportConfig(path, config)
         statusMessage = "Configuration exported to ${File(path).name}"
@@ -483,6 +504,15 @@ class LogViewModel(
             }
             saveFilters()
             refreshFilters()
+        }
+        
+        if (config.customFormats.isNotEmpty()) {
+            config.customFormats.forEach { imported ->
+                if (customFormats.none { it.id == imported.id || it.name == imported.name }) {
+                    customFormats.add(imported)
+                }
+            }
+            storage.saveFormats(customFormats.toList())
         }
         statusMessage = "Imported configuration components."
     }
