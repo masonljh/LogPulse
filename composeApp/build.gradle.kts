@@ -34,7 +34,7 @@ compose.desktop {
                 org.jetbrains.compose.desktop.application.dsl.TargetFormat.Pkg
             )
             packageName = "LogPulse"
-            packageVersion = "0.0.3"
+            packageVersion = "0.0.4"
         }
     }
 }
