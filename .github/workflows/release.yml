@@ -48,7 +48,6 @@ jobs:
             composeApp/build/compose/binaries/main/msi/*.msi
             composeApp/build/compose/binaries/main/exe/*.exe
             composeApp/build/compose/binaries/main/dmg/*.dmg
-            composeApp/build/compose/binaries/main/pkg/*.pkg
             composeApp/build/compose/binaries/main/deb/*.deb
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

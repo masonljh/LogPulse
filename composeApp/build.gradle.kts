@@ -30,8 +30,7 @@ compose.desktop {
             targetFormats(
                 org.jetbrains.compose.desktop.application.dsl.TargetFormat.Msi,
                 org.jetbrains.compose.desktop.application.dsl.TargetFormat.Deb,
-                org.jetbrains.compose.desktop.application.dsl.TargetFormat.Dmg,
-                org.jetbrains.compose.desktop.application.dsl.TargetFormat.Pkg
+                org.jetbrains.compose.desktop.application.dsl.TargetFormat.Dmg
             )
             packageName = "LogPulse"
             packageVersion = "0.0.4"
