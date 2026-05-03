@@ -46,25 +46,35 @@ class AnalyzeFlowsUseCase(
                 val activeTrace = activeFlowBySeq[sequence.id]
                 val seqFlows = allFlowsBySeq[sequence.id]!!
                 
-                // Check if this log matches ANY step in the current sequence
-                val matchingStepIndex = sequence.steps.indexOfFirst { matches[it.pattern] != null }
-                if (matchingStepIndex != -1) {
-                    val matchedLog = matches[sequence.steps[matchingStepIndex].pattern]!!
-                    
-                    var processed = false
+                var processed = false
 
-                    if (activeTrace != null) {
-                        val state = calculateState(activeTrace.logs, sequence)
-                        val currentStep = sequence.steps.getOrNull(state.stepIndex)
-                        val nextStep = sequence.steps.getOrNull(state.stepIndex + 1)
+                if (activeTrace != null) {
+                    val state = calculateState(activeTrace.logs, sequence)
+                    val currentStep = sequence.steps.getOrNull(state.stepIndex)
+                    
+                    if (currentStep != null) {
+                        var validNextStepIndex = -1
                         
-                        val isMatchedCurrent = matchingStepIndex == state.stepIndex
-                        val isMatchedNext = nextStep != null && matchingStepIndex == (state.stepIndex + 1) && state.matchCount >= currentStep!!.minCount
-                        
-                        if (isMatchedNext || isMatchedCurrent) {
-                            // Valid progression or repetition
-                            // Special case: Step 0 restart
-                            if (matchingStepIndex == 0 && state.matchCount > 0 && sequence.steps[0].maxCount == 1) {
+                        if (matches[currentStep.pattern] != null && (currentStep.maxCount == -1 || state.matchCount < currentStep.maxCount)) {
+                            validNextStepIndex = state.stepIndex
+                        } else if (state.matchCount >= currentStep.minCount) {
+                            for (i in (state.stepIndex + 1) until sequence.steps.size) {
+                                val stepPattern = sequence.steps[i].pattern
+                                if (matches[stepPattern] != null) {
+                                    validNextStepIndex = i
+                                    break
+                                }
+                                if (sequence.steps[i].minCount > 0) {
+                                    break // Cannot skip mandatory step
+                                }
+                            }
+                        }
+
+                        if (validNextStepIndex != -1) {
+                            val matchedLog = matches[sequence.steps[validNextStepIndex].pattern]!!
+                            
+                            // Check for Step 0 restart
+                            if (validNextStepIndex == 0 && state.matchCount >= sequence.steps[0].minCount && (sequence.steps[0].maxCount != -1 && state.matchCount >= sequence.steps[0].maxCount)) {
                                 // Mark old as failed/terminated and start new
                                 val failedTrace = activeTrace.copy(
                                     status = FlowStatus.Failed("Restarted by new '${sequence.steps[0].pattern.name}'")
@@ -93,18 +103,57 @@ class AnalyzeFlowsUseCase(
                             }
                             processed = true
                         } else {
-                            // STRICT RULE: Belongs to sequence but NOT current/next step -> FAIL
-                            val failedTrace = activeTrace.copy(
-                                status = FlowStatus.Failed("Unexpected step '${sequence.steps[matchingStepIndex].pattern.name}' appeared out of order")
-                            )
-                            seqFlows[seqFlows.indexOf(activeTrace)] = failedTrace
-                            activeFlowBySeq[sequence.id] = null
-                            // Continue to see if this log can start a NEW flow
+                            // Does it match ANY step out of order?
+                            val anyMatchIndex = sequence.steps.indexOfFirst { matches[it.pattern] != null }
+                            if (anyMatchIndex != -1) {
+                                // It could be a valid restart from step 0 (or skipped optional initial steps)
+                                var isRestart = false
+                                var restartIndex = -1
+                                for (i in sequence.steps.indices) {
+                                    if (matches[sequence.steps[i].pattern] != null) {
+                                        isRestart = true
+                                        restartIndex = i
+                                        break
+                                    }
+                                    if (sequence.steps[i].minCount > 0) {
+                                        break
+                                    }
+                                }
+
+                                if (isRestart && anyMatchIndex == restartIndex) {
+                                    val failedTrace = activeTrace.copy(
+                                        status = FlowStatus.Failed("Restarted by new '${sequence.steps[restartIndex].pattern.name}'")
+                                    )
+                                    seqFlows[seqFlows.indexOf(activeTrace)] = failedTrace
+                                    activeFlowBySeq[sequence.id] = null
+                                    // Let the 'Start new flow' block handle creating the new one
+                                } else {
+                                    val failedTrace = activeTrace.copy(
+                                        status = FlowStatus.Failed("Unexpected step '${sequence.steps[anyMatchIndex].pattern.name}' appeared out of order")
+                                    )
+                                    seqFlows[seqFlows.indexOf(activeTrace)] = failedTrace
+                                    activeFlowBySeq[sequence.id] = null
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Start new flow if not processed
+                if (!processed) {
+                    var validStartIndex = -1
+                    for (i in sequence.steps.indices) {
+                        if (matches[sequence.steps[i].pattern] != null) {
+                            validStartIndex = i
+                            break
+                        }
+                        if (sequence.steps[i].minCount > 0) {
+                            break
                         }
                     }
 
-                    // Start new flow if not processed (or if we just failed the previous one)
-                    if (!processed && matchingStepIndex == 0) {
+                    if (validStartIndex != -1) {
+                        val matchedLog = matches[sequence.steps[validStartIndex].pattern]!!
                         val newTrace = FlowTrace(
                             id = matchedLog.extractedId ?: "trace_${log.timestamp}",
                             sequence = sequence,
@@ -137,26 +186,46 @@ class AnalyzeFlowsUseCase(
         var currentStepMatchCount = 0
 
         for (log in logs) {
-            val currentStep = steps.getOrNull(currentStepIndex) ?: break
-            val nextStep = steps.getOrNull(currentStepIndex + 1)
+            if (currentStepIndex >= steps.size) {
+                return FlowState(currentStepIndex, currentStepMatchCount, FlowStatus.Failed("Extra logs after sequence completion"))
+            }
 
+            val currentStep = steps[currentStepIndex]
+
+            var matchedIndex = -1
             if (log.pattern.name == currentStep.pattern.name) {
+                matchedIndex = currentStepIndex
+            } else {
+                if (currentStepMatchCount >= currentStep.minCount) {
+                    // Look ahead for matching step, skipping optional ones
+                    for (i in (currentStepIndex + 1) until steps.size) {
+                        if (log.pattern.name == steps[i].pattern.name) {
+                            matchedIndex = i
+                            break
+                        }
+                        if (steps[i].minCount > 0) {
+                            break // Reached a mandatory step, cannot skip further
+                        }
+                    }
+                }
+            }
+
+            if (matchedIndex == currentStepIndex) {
                 currentStepMatchCount++
                 if (currentStep.maxCount != -1 && currentStepMatchCount >= currentStep.maxCount) {
                     currentStepIndex++
                     currentStepMatchCount = 0
                 }
-            } else if (nextStep != null && log.pattern.name == nextStep.pattern.name) {
-                if (currentStepMatchCount >= currentStep.minCount) {
+            } else if (matchedIndex > currentStepIndex) {
+                currentStepIndex = matchedIndex
+                currentStepMatchCount = 1
+                val newStep = steps[currentStepIndex]
+                if (newStep.maxCount != -1 && currentStepMatchCount >= newStep.maxCount) {
                     currentStepIndex++
-                    currentStepMatchCount = 1
-                    if (nextStep.maxCount != -1 && currentStepMatchCount >= nextStep.maxCount) {
-                        currentStepIndex++
-                        currentStepMatchCount = 0
-                    }
-                } else {
-                    return FlowState(currentStepIndex, currentStepMatchCount, FlowStatus.Failed("Step '${currentStep.pattern.name}' expected at least ${currentStep.minCount} matches"))
+                    currentStepMatchCount = 0
                 }
+            } else {
+                return FlowState(currentStepIndex, currentStepMatchCount, FlowStatus.Failed("Unexpected step '${log.pattern.name}'"))
             }
         }
 
