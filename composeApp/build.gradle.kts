@@ -35,6 +35,9 @@ compose.desktop {
             )
             packageName = "LogPulse"
             packageVersion = "0.0.4"
+            macOS {
+                packageVersion = "1.0.4"
+            }
         }
     }
 }
