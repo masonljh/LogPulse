@@ -42,7 +42,8 @@ fun FlowDashboardPane(
     onExportConfig: () -> Unit,
     onImportConfig: () -> Unit,
     onToggleFlow: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isEnabled: Boolean = true
 ) {
     var selectedSequenceId by remember { mutableStateOf<String?>(null) }
     var selectedStatusFilter by remember { mutableStateOf<String?>(null) } // null means "All"
@@ -87,16 +88,16 @@ fun FlowDashboardPane(
                 fontWeight = FontWeight.Bold
             )
             
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onImportConfig, modifier = Modifier.size(24.dp)) {
-                    Icon(Icons.Default.Share, contentDescription = "Import", tint = Color.LightGray, modifier = Modifier.size(16.dp))
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.alpha(if (isEnabled) 1.0f else 0.5f)) {
+                IconButton(onClick = onImportConfig, modifier = Modifier.size(24.dp), enabled = isEnabled) {
+                    Icon(Icons.Default.Share, contentDescription = "Import", tint = if (isEnabled) Color.LightGray else Color.Gray, modifier = Modifier.size(16.dp))
                 }
-                IconButton(onClick = onExportConfig, modifier = Modifier.size(24.dp)) {
-                    Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = "Export", tint = Color.LightGray, modifier = Modifier.size(16.dp))
+                IconButton(onClick = onExportConfig, modifier = Modifier.size(24.dp), enabled = isEnabled) {
+                    Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = "Export", tint = if (isEnabled) Color.LightGray else Color.Gray, modifier = Modifier.size(16.dp))
                 }
                 Spacer(Modifier.width(8.dp))
-                IconButton(onClick = onAddFlow, modifier = Modifier.size(24.dp)) {
-                    Icon(Icons.Default.Add, contentDescription = "Add Flow", tint = Color(0xFF4FC3F7))
+                IconButton(onClick = onAddFlow, modifier = Modifier.size(24.dp), enabled = isEnabled) {
+                    Icon(Icons.Default.Add, contentDescription = "Add Flow", tint = if (isEnabled) Color(0xFF4FC3F7) else Color.Gray)
                 }
             }
         }
@@ -122,12 +123,15 @@ fun FlowDashboardPane(
                             traces = traces,
                             isSelected = selectedSequenceId == sequence.id,
                             onSelect = { 
-                                selectedSequenceId = it 
-                                selectedStatusFilter = null // Reset filter on sequence change
+                                if (isEnabled) {
+                                    selectedSequenceId = it 
+                                    selectedStatusFilter = null 
+                                }
                             },
                             onEdit = { onEditFlow(sequence) },
                             onDelete = { onRemoveFlow(it) },
-                            onToggle = { onToggleFlow(it) }
+                            onToggle = { onToggleFlow(it) },
+                            isEnabled = isEnabled
                         )
                     }
                 }
@@ -150,13 +154,13 @@ fun FlowDashboardPane(
                 
                 // Status Tabs
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().alpha(if (isEnabled) 1.0f else 0.5f),
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    MiniStatusTab("All", tracesForSelected.size, selectedStatusFilter == null, Color.Gray) { selectedStatusFilter = null }
-                    MiniStatusTab("Success", completeCount, selectedStatusFilter == "Complete", Color(0xFF43A047)) { selectedStatusFilter = "Complete" }
-                    MiniStatusTab("Warning", inProgressCount, selectedStatusFilter == "InProgress", Color(0xFFFFB300)) { selectedStatusFilter = "InProgress" }
-                    MiniStatusTab("Error", failedCount, selectedStatusFilter == "Failed", Color(0xFFE53935)) { selectedStatusFilter = "Failed" }
+                    MiniStatusTab("All", tracesForSelected.size, selectedStatusFilter == null, Color.Gray, isEnabled) { selectedStatusFilter = null }
+                    MiniStatusTab("Success", completeCount, selectedStatusFilter == "Complete", Color(0xFF43A047), isEnabled) { selectedStatusFilter = "Complete" }
+                    MiniStatusTab("Warning", inProgressCount, selectedStatusFilter == "InProgress", Color(0xFFFFB300), isEnabled) { selectedStatusFilter = "InProgress" }
+                    MiniStatusTab("Error", failedCount, selectedStatusFilter == "Failed", Color(0xFFE53935), isEnabled) { selectedStatusFilter = "Failed" }
                 }
             }
             
@@ -187,10 +191,12 @@ fun MiniStatusTab(
     count: Int,
     isSelected: Boolean,
     color: Color,
+    isEnabled: Boolean = true,
     onClick: () -> Unit
 ) {
     Surface(
-        onClick = onClick,
+        onClick = if (isEnabled) onClick else ({}),
+        enabled = isEnabled,
         color = if (isSelected) color.copy(alpha = 0.25f) else Color(0xFF2D2D2D),
         shape = RoundedCornerShape(4.dp),
         border = BorderStroke(if (isSelected) 1.5.dp else 0.5.dp, if (isSelected) color else Color.DarkGray)
@@ -226,14 +232,16 @@ fun SequenceCard(
     onSelect: (String) -> Unit,
     onEdit: () -> Unit,
     onDelete: (String) -> Unit,
-    onToggle: (String) -> Unit
+    onToggle: (String) -> Unit,
+    isEnabled: Boolean = true
 ) {
     val successCount = traces.count { it.status is FlowStatus.Complete }
     val failedCount = traces.count { it.status is FlowStatus.Failed }
     val progressCount = traces.count { it.status is FlowStatus.InProgress }
 
     Surface(
-        onClick = { onSelect(sequence.id) },
+        onClick = { if (isEnabled) onSelect(sequence.id) },
+        enabled = isEnabled,
         color = if (isSelected) Color(0xFF2D2D2D) else Color(0xFF252525),
         shape = RoundedCornerShape(4.dp),
         border = if (isSelected) BorderStroke(1.dp, Color(0xFF4FC3F7)) else null,
@@ -255,22 +263,25 @@ fun SequenceCard(
                     overflow = TextOverflow.Ellipsis
                 )
                 
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.alpha(if (isEnabled) 1.0f else 0.5f)) {
                     Switch(
                         checked = sequence.isEnabled,
                         onCheckedChange = { onToggle(sequence.id) },
+                        enabled = isEnabled,
                         colors = SwitchDefaults.colors(
                             checkedThumbColor = Color(0xFF4FC3F7),
-                            checkedTrackColor = Color(0xFF0288D1)
+                            checkedTrackColor = Color(0xFF0288D1),
+                            disabledCheckedThumbColor = Color.Gray,
+                            disabledCheckedTrackColor = Color.DarkGray
                         ),
                         modifier = Modifier.scale(0.7f).size(32.dp)
                     )
                     
-                    IconButton(onClick = onEdit, modifier = Modifier.size(24.dp)) {
-                        Icon(Icons.Default.Edit, contentDescription = "Edit", tint = Color.Gray, modifier = Modifier.size(16.dp))
+                    IconButton(onClick = onEdit, modifier = Modifier.size(24.dp), enabled = isEnabled) {
+                        Icon(Icons.Default.Edit, contentDescription = "Edit", tint = if (isEnabled) Color.Gray else Color.DarkGray, modifier = Modifier.size(16.dp))
                     }
-                    IconButton(onClick = { onDelete(sequence.id) }, modifier = Modifier.size(24.dp)) {
-                        Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color(0xFFE53935), modifier = Modifier.size(16.dp))
+                    IconButton(onClick = { onDelete(sequence.id) }, modifier = Modifier.size(24.dp), enabled = isEnabled) {
+                        Icon(Icons.Default.Delete, contentDescription = "Delete", tint = if (isEnabled) Color(0xFFE53935) else Color.DarkGray, modifier = Modifier.size(16.dp))
                     }
                 }
             }

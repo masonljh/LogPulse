@@ -300,7 +300,8 @@ fun App(viewModel: LogViewModel = viewModel { LogViewModel() }) {
                             }
                         },
                         onToggleFlow = { viewModel.toggleSequence(it) },
-                        modifier = Modifier.width(320.dp).fillMaxHeight()
+                        modifier = Modifier.width(320.dp).fillMaxHeight(),
+                        isEnabled = !viewModel.isAnyFileLoading
                     )
 
                     VerticalDivider(modifier = Modifier.width(1.dp), color = Color.Gray.copy(alpha = 0.2f))
