@@ -35,6 +35,7 @@ jobs:
         shell: bash
 
       - name: Build Distribution
+        shell: bash
         run: ./gradlew :composeApp:packageDistributionForCurrentOS
 
       - name: Release

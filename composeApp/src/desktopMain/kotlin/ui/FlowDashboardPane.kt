@@ -13,6 +13,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -91,7 +92,7 @@ fun FlowDashboardPane(
                     Icon(Icons.Default.Share, contentDescription = "Import", tint = Color.LightGray, modifier = Modifier.size(16.dp))
                 }
                 IconButton(onClick = onExportConfig, modifier = Modifier.size(24.dp)) {
-                    Icon(Icons.Default.ExitToApp, contentDescription = "Export", tint = Color.LightGray, modifier = Modifier.size(16.dp))
+                    Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = "Export", tint = Color.LightGray, modifier = Modifier.size(16.dp))
                 }
                 Spacer(Modifier.width(8.dp))
                 IconButton(onClick = onAddFlow, modifier = Modifier.size(24.dp)) {
@@ -345,7 +346,7 @@ fun FlowInstanceItem(
             )
 
             Icon(
-                if (expanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowRight,
+                if (expanded) Icons.Default.KeyboardArrowDown else Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = null,
                 tint = Color.Gray,
                 modifier = Modifier.size(16.dp)

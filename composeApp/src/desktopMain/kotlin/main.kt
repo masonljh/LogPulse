@@ -189,7 +189,7 @@ fun App(viewModel: LogViewModel = viewModel { LogViewModel() }) {
                             )
                             if (viewModel.analysisProgress < 1f) {
                                 LinearProgressIndicator(
-                                    progress = viewModel.analysisProgress,
+                                    progress = { viewModel.analysisProgress },
                                     modifier = Modifier.width(200.dp).padding(top = 4.dp),
                                     color = Color(0xFF4FC3F7),
                                     trackColor = Color.DarkGray

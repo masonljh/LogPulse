@@ -29,13 +29,23 @@ compose.desktop {
         nativeDistributions {
             targetFormats(
                 org.jetbrains.compose.desktop.application.dsl.TargetFormat.Msi,
+                org.jetbrains.compose.desktop.application.dsl.TargetFormat.Exe,
                 org.jetbrains.compose.desktop.application.dsl.TargetFormat.Deb,
                 org.jetbrains.compose.desktop.application.dsl.TargetFormat.Dmg
             )
             packageName = "LogPulse"
-            packageVersion = "0.0.4"
+            packageVersion = "1.0.4"
+            
+            windows {
+                packageVersion = "1.0.4"
+                shortcut = true
+                menu = true
+            }
+            
             macOS {
                 packageVersion = "1.0.4"
+                bundleID = "com.antdev.logpulse"
+                dockName = "LogPulse"
             }
         }
     }
