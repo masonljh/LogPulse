@@ -147,14 +147,13 @@ fun ParseConfigDialog(
                 
                 Spacer(modifier = Modifier.height(8.dp))
                 
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    OutlinedTextField(value = timestampGroup, onValueChange = { timestampGroup = it }, label = { Text("Timestamp Grp") }, modifier = Modifier.weight(1f))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    OutlinedTextField(value = levelGroup, onValueChange = { levelGroup = it }, label = { Text("Level Grp") }, modifier = Modifier.weight(1f))
-                    Spacer(modifier = Modifier.width(4.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    OutlinedTextField(value = timestampGroup, onValueChange = { timestampGroup = it }, label = { Text("Time Grp") }, modifier = Modifier.weight(1f))
+                    OutlinedTextField(value = levelGroup, onValueChange = { levelGroup = it }, label = { Text("Lv Grp") }, modifier = Modifier.weight(0.8f))
+                    OutlinedTextField(value = pidGroup, onValueChange = { pidGroup = it }, label = { Text("PID Grp") }, modifier = Modifier.weight(0.8f))
+                    OutlinedTextField(value = tidGroup, onValueChange = { tidGroup = it }, label = { Text("TID Grp") }, modifier = Modifier.weight(0.8f))
                     OutlinedTextField(value = tagGroup, onValueChange = { tagGroup = it }, label = { Text("Tag Grp") }, modifier = Modifier.weight(1f))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    OutlinedTextField(value = messageGroup, onValueChange = { messageGroup = it }, label = { Text("Msg Grp") }, modifier = Modifier.weight(1f))
+                    OutlinedTextField(value = messageGroup, onValueChange = { messageGroup = it }, label = { Text("Msg Grp") }, modifier = Modifier.weight(1.2f))
                 }
                 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -170,7 +169,13 @@ fun ParseConfigDialog(
                         LazyColumn {
                             items(parsedEvents) { event ->
                                 Text(
-                                    text = "[${event.timestamp}] ${event.level} [${event.tag}] ${event.message}",
+                                    text = buildString {
+                                        append("[${event.timestamp}] ")
+                                        if (event.pid.isNotEmpty() || event.tid.isNotEmpty()) {
+                                            append("${event.pid}/${event.tid} ")
+                                        }
+                                        append("${event.level} [${event.tag}] ${event.message}")
+                                    },
                                     color = Color.LightGray,
                                     fontFamily = FontFamily.Monospace,
                                     fontSize = 12.sp,

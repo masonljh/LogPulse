@@ -295,7 +295,7 @@ fun App(viewModel: LogViewModel = viewModel { LogViewModel() }) {
                         modifier = Modifier.width(320.dp).fillMaxHeight()
                     )
 
-                    VerticalDivider(color = Color.DarkGray)
+                    VerticalDivider(modifier = Modifier.width(1.dp), color = Color.Gray.copy(alpha = 0.2f))
 
                     Column(modifier = Modifier.weight(1f)) {
                         FilterBar(

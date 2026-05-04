@@ -134,7 +134,7 @@ fun FlowDashboardPane(
             }
         }
 
-        HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Color.DarkGray)
+        HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Color.Gray.copy(alpha = 0.5f))
 
         // Instance List for selected sequence
         Column(modifier = Modifier.weight(0.6f).fillMaxWidth()) {
@@ -191,9 +191,9 @@ fun MiniStatusTab(
 ) {
     Surface(
         onClick = onClick,
-        color = if (isSelected) color.copy(alpha = 0.2f) else Color.Transparent,
+        color = if (isSelected) color.copy(alpha = 0.25f) else Color(0xFF2D2D2D),
         shape = RoundedCornerShape(4.dp),
-        border = BorderStroke(0.5.dp, if (isSelected) color else Color.DarkGray)
+        border = BorderStroke(if (isSelected) 1.5.dp else 0.5.dp, if (isSelected) color else Color.DarkGray)
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp),

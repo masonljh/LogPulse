@@ -83,7 +83,7 @@ fun FilterBar(
             }
         }
 
-        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = Color.Gray.copy(alpha = 0.3f))
+        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = Color.Gray.copy(alpha = 0.5f))
 
         // PID and TID share a line
         Row(modifier = Modifier.fillMaxWidth()) {
