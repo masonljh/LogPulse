@@ -11,6 +11,7 @@ import com.antdev.logpulse.data.storage.SequenceStorage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 
 class LogViewModel(
@@ -46,6 +47,11 @@ class LogViewModel(
     var currentFileName by mutableStateOf<String?>(null)
         private set
 
+    var isAnyFileLoading by mutableStateOf(false)
+        private set
+    
+    val loadingProgress = mutableStateMapOf<String, Float>()
+
     // Filtering State
     val filters = mutableStateListOf<LogFilter>()
     
@@ -71,7 +77,9 @@ class LogViewModel(
         loadPersistentConfig()
     }
 
-    private fun refreshFilters() {
+    fun refreshFilters() {
+        if (isAnyFileLoading) return // Block filtering during loading
+        
         filterJob?.cancel()
         filterJob = viewModelScope.launch {
             val currentLogs = logs.toList()
@@ -85,7 +93,6 @@ class LogViewModel(
 
             statusMessage = "Filtering ${currentLogs.size} lines..."
 
-            // Group filters for performance
             val includeFiltersByField = FilterField.entries.associateWith { field ->
                 activeFilters.filter { it.field == field && it.type == FilterType.INCLUDE }
             }
@@ -93,14 +100,12 @@ class LogViewModel(
 
             val result = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
                 currentLogs.filter { log ->
-                    // 1. Check Include filters (AND between fields, OR within same field)
                     val includePass = includeFiltersByField.all { (field, fieldFilters) ->
                         if (fieldFilters.isEmpty()) true
                         else fieldFilters.any { filter -> matches(log, filter) }
                     }
                     if (!includePass) return@filter false
                     
-                    // 2. Check Exclude filters (OR for any exclusion)
                     val excludeFail = excludeFilters.any { matches(log, it) }
                     !excludeFail
                 }
@@ -426,27 +431,40 @@ class LogViewModel(
         if (loadedFiles.contains(fileName)) return
 
         viewModelScope.launch {
-            parseUseCase(path, format).collect { result ->
-                when (result) {
-                    is LogParseResult.Loading -> {
-                        statusMessage = "Loading $fileName..."
-                        if (!sourceMap.containsKey(path)) {
-                            sourceMap[path] = mutableListOf()
-                        }
-                    }
-                    is LogParseResult.Success -> {
-                        sourceMap[path]?.addAll(result.logs)
-                        
-                        if (result.isComplete) {
-                            if (!loadedFiles.contains(fileName)) {
-                                loadedFiles.add(fileName)
+            isAnyFileLoading = true
+            try {
+                parseUseCase(path, format).collect { result ->
+                    when (result) {
+                        is LogParseResult.Loading -> {
+                            loadingProgress[fileName] = result.progress
+                            statusMessage = "Loading $fileName (${(result.progress * 100).toInt()}%)..."
+                            if (!sourceMap.containsKey(path)) {
+                                sourceMap[path] = mutableListOf()
                             }
-                            remergeLogs()
+                        }
+                        is LogParseResult.Success -> {
+                            sourceMap[path]?.addAll(result.logs)
+                            
+                            if (result.isComplete) {
+                                loadingProgress.remove(fileName)
+                                if (!loadedFiles.contains(fileName)) {
+                                    loadedFiles.add(fileName)
+                                }
+                                // Remerge will happen after this scope if no more files are loading
+                            }
+                        }
+                        is LogParseResult.Error -> {
+                            statusMessage = "Error loading $fileName: ${result.message}"
+                            loadingProgress.remove(fileName)
                         }
                     }
-                    is LogParseResult.Error -> {
-                        statusMessage = "Error loading $fileName: ${result.message}"
-                    }
+                }
+            } finally {
+                // If this was the last file loading, perform final remerge
+                val stillLoading = loadingProgress.isNotEmpty()
+                if (!stillLoading) {
+                    isAnyFileLoading = false
+                    remergeLogs()
                 }
             }
         }
@@ -462,14 +480,18 @@ class LogViewModel(
     }
 
     private fun remergeLogs() {
-        logs.clear()
-        val merged = mergeUseCase(sourceMap.mapValues { it.value.toList() })
-        logs.addAll(merged)
-        
-        reanalyzeAllFlows()
-        refreshFilters()
-        
-        statusMessage = "Loaded ${loadedFiles.size} files. Total ${logs.size} lines. Flows: ${flowTraces.size}"
+        viewModelScope.launch(Dispatchers.Default) {
+            val snapshot = sourceMap.mapValues { it.value.toList() }
+            val merged = mergeUseCase(snapshot)
+            
+            withContext(kotlinx.coroutines.Dispatchers.Main) {
+                logs.clear()
+                logs.addAll(merged)
+                reanalyzeAllFlows()
+                refreshFilters()
+                statusMessage = "Loaded ${loadedFiles.size} files. Total ${logs.size} lines."
+            }
+        }
     }
     fun exportConfig(path: String) {
         val config = LogPulseConfig(

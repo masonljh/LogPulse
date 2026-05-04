@@ -187,7 +187,15 @@ fun App(viewModel: LogViewModel = viewModel { LogViewModel() }) {
                                 color = Color.LightGray,
                                 style = MaterialTheme.typography.bodySmall
                             )
-                            if (viewModel.analysisProgress < 1f) {
+                            if (viewModel.isAnyFileLoading) {
+                                val avgLoadProgress = if (viewModel.loadingProgress.isEmpty()) 0f else viewModel.loadingProgress.values.average().toFloat()
+                                LinearProgressIndicator(
+                                    progress = { avgLoadProgress },
+                                    modifier = Modifier.width(200.dp).padding(top = 4.dp),
+                                    color = Color(0xFF4CAF50),
+                                    trackColor = Color.DarkGray
+                                )
+                            } else if (viewModel.analysisProgress < 1f) {
                                 LinearProgressIndicator(
                                     progress = { viewModel.analysisProgress },
                                     modifier = Modifier.width(200.dp).padding(top = 4.dp),
@@ -312,7 +320,8 @@ fun App(viewModel: LogViewModel = viewModel { LogViewModel() }) {
                                     val path = File(dialog.directory, dialog.file).absolutePath
                                     viewModel.addLogFile(path)
                                 }
-                            }
+                            },
+                            isEnabled = !viewModel.isAnyFileLoading
                         )
                         
                         Row(modifier = Modifier.fillMaxSize()) {

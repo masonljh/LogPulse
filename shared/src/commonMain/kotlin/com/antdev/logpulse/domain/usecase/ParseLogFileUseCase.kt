@@ -18,7 +18,7 @@ class ParseLogFileUseCase(
     private val chunkSize: Int = 500
 ) {
     operator fun invoke(filePath: String, format: LogFormat, sourceName: String? = null): Flow<LogParseResult> = flow {
-        emit(LogParseResult.Loading)
+        emit(LogParseResult.Loading(0f))
         
         val actualSource = sourceName ?: filePath.toPath().name
 
@@ -30,54 +30,51 @@ class ParseLogFileUseCase(
         try {
             val path = filePath.toPath()
             if (!fileSystem.exists(path)) {
-                // If file doesn't exist, it's not a hard error, just return empty success
                 emit(LogParseResult.Success(logs = emptyList(), isComplete = true))
                 return@flow
             }
+            
+            val metadata = fileSystem.metadata(path)
+            val totalSize = metadata.size ?: 1L
+            var bytesRead = 0L
 
             fileSystem.source(path).buffer().use { source ->
                 val currentChunk = mutableListOf<LogEvent>()
                 var lineCount = 0
                 val parser = RegexLogParser(format)
+                var pendingLog: LogEvent? = null
                 
                 while (!source.exhausted()) {
                     val line = source.readUtf8Line() ?: break
+                    bytesRead += line.length.toLong() + 1
+                    
                     val event = parser.parseLine(line, idPrefix = filePath, source = actualSource, lineIndex = lineCount++)
                     
-                    // RegexLogParser buffers the previous line if it's a multi-line log.
-                    // We need to carefully handle appending. Actually, `parseLine` returns the updated previous log if it appended.
-                    // Wait, if it appended, it modifies the object we already emitted? No, it creates a new copy.
-                    // If it's a new log, it returns the new log. If it appends, it returns the updated log, BUT we already emitted the old one!
-                    // So returning immediately on append is problematic for streaming.
-                    // Let's change the parser flow slightly. Or just collect and emit. 
-                    // Actually, if `parseLine` returns the current parsed log, and we just add it, we might have duplicates if it appended.
-                    // A better way for RegexLogParser is to buffer the current log, and return it ONLY when a NEW log starts or EOF.
-                    
-                    // For now, let's keep it simple: RegexLogParser returns non-null when it successfully parses a NEW line.
-                    // Let's modify the RegexLogParser behavior inside here or adjust the use case.
-                    
-                    if (event != null && event === parser.getPendingPreviousLog() && lineCount - 1 == event.lineIndex) {
-                        currentChunk.add(event)
-                    } else if (event != null && event.lineIndex < lineCount - 1) {
-                        // It was an append. We need to replace the last item in the chunk.
-                        val indexInChunk = currentChunk.indexOfFirst { it.lineIndex == event.lineIndex }
-                        if (indexInChunk != -1) {
-                            currentChunk[indexInChunk] = event
+                    if (event != null) {
+                        if (event.lineIndex == lineCount - 1) {
+                            // New log started. Pending is now complete.
+                            if (pendingLog != null) {
+                                currentChunk.add(pendingLog)
+                            }
+                            pendingLog = event
+                        } else {
+                            // Appended to pending.
+                            pendingLog = event
                         }
                     }
 
                     if (currentChunk.size >= chunkSize) {
                         emit(LogParseResult.Success(logs = currentChunk.toList(), isComplete = false))
                         currentChunk.clear()
+                        emit(LogParseResult.Loading(bytesRead.toFloat() / totalSize))
                     }
                 }
 
-                // Emit remaining logs
-                if (currentChunk.isNotEmpty()) {
-                    emit(LogParseResult.Success(logs = currentChunk.toList(), isComplete = true))
-                } else {
-                    emit(LogParseResult.Success(logs = emptyList(), isComplete = true))
+                if (pendingLog != null) {
+                    currentChunk.add(pendingLog)
                 }
+                
+                emit(LogParseResult.Success(logs = currentChunk.toList(), isComplete = true))
             }
         } catch (e: Exception) {
             emit(LogParseResult.Error("로그 파싱 중 오류 발생", e))

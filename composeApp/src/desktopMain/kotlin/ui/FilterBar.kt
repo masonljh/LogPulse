@@ -15,6 +15,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
@@ -35,7 +36,8 @@ fun FilterBar(
     onRemoveFilter: (String) -> Unit,
     onUpdateFilter: (LogFilter) -> Unit,
     onRemoveFile: (String) -> Unit,
-    onAddFile: () -> Unit
+    onAddFile: () -> Unit,
+    isEnabled: Boolean = true
 ) {
     Column(
         modifier = Modifier
@@ -87,20 +89,20 @@ fun FilterBar(
 
         // PID and TID share a line
         Row(modifier = Modifier.fillMaxWidth()) {
-            FilterSection("PID", FilterField.PID, filters, onAddFilter, onRemoveFilter, onUpdateFilter, Modifier.weight(1f))
+            FilterSection("PID", FilterField.PID, filters, onAddFilter, onRemoveFilter, onUpdateFilter, Modifier.weight(1f), isEnabled)
             Spacer(modifier = Modifier.width(20.dp))
-            FilterSection("TID", FilterField.TID, filters, onAddFilter, onRemoveFilter, onUpdateFilter, Modifier.weight(1f))
+            FilterSection("TID", FilterField.TID, filters, onAddFilter, onRemoveFilter, onUpdateFilter, Modifier.weight(1f), isEnabled)
         }
         
         Spacer(modifier = Modifier.height(12.dp))
         
         // TAG takes full width
-        FilterSection("TAG", FilterField.TAG, filters, onAddFilter, onRemoveFilter, onUpdateFilter)
+        FilterSection("TAG", FilterField.TAG, filters, onAddFilter, onRemoveFilter, onUpdateFilter, isEnabled = isEnabled)
         
         Spacer(modifier = Modifier.height(12.dp))
         
         // Message takes full width
-        FilterSection("Msg", FilterField.MESSAGE, filters, onAddFilter, onRemoveFilter, onUpdateFilter)
+        FilterSection("Msg", FilterField.MESSAGE, filters, onAddFilter, onRemoveFilter, onUpdateFilter, isEnabled = isEnabled)
     }
 }
 
@@ -112,9 +114,10 @@ fun FilterSection(
     onAddFilter: (String, FilterType, FilterField) -> Unit,
     onRemoveFilter: (String) -> Unit,
     onUpdateFilter: (LogFilter) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isEnabled: Boolean = true
 ) {
-    Row(modifier = modifier, verticalAlignment = Alignment.Top) {
+    Row(modifier = modifier.alpha(if (isEnabled) 1.0f else 0.5f), verticalAlignment = Alignment.Top) {
         Text(
             text = label,
             color = Color.White,
@@ -125,25 +128,27 @@ fun FilterSection(
         
         Column(modifier = Modifier.weight(1f)) {
             FilterArea(
-                placeholder = "Include",
+                placeholder = if (isEnabled) "Include" else "Loading...",
                 type = FilterType.INCLUDE,
                 field = field,
                 filters = allFilters.filter { it.field == field && it.type == FilterType.INCLUDE },
                 color = Color(0xFF43A047),
                 onAdd = onAddFilter,
                 onRemove = onRemoveFilter,
-                onUpdate = onUpdateFilter
+                onUpdate = onUpdateFilter,
+                isEnabled = isEnabled
             )
             Spacer(modifier = Modifier.height(4.dp))
             FilterArea(
-                placeholder = "Exclude",
+                placeholder = if (isEnabled) "Exclude" else "Loading...",
                 type = FilterType.EXCLUDE,
                 field = field,
                 filters = allFilters.filter { it.field == field && it.type == FilterType.EXCLUDE },
                 color = Color(0xFFE53935),
                 onAdd = onAddFilter,
                 onRemove = onRemoveFilter,
-                onUpdate = onUpdateFilter
+                onUpdate = onUpdateFilter,
+                isEnabled = isEnabled
             )
         }
     }
@@ -159,7 +164,8 @@ fun FilterArea(
     color: Color,
     onAdd: (String, FilterType, FilterField) -> Unit,
     onRemove: (String) -> Unit,
-    onUpdate: (LogFilter) -> Unit
+    onUpdate: (LogFilter) -> Unit,
+    isEnabled: Boolean = true
 ) {
     var text by remember { mutableStateOf("") }
     val focusRequester = remember { FocusRequester() }
@@ -173,7 +179,8 @@ fun FilterArea(
             .border(0.5.dp, color.copy(alpha = 0.4f), RoundedCornerShape(4.dp))
             .clickable(
                 interactionSource = interactionSource,
-                indication = null // No ripple for the whole box, just focus
+                indication = null,
+                enabled = isEnabled
             ) { 
                 focusRequester.requestFocus() 
             }
@@ -186,7 +193,7 @@ fun FilterArea(
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             filters.forEach { filter ->
-                InlineFilterChip(filter, onRemove, onUpdate)
+                InlineFilterChip(filter, onRemove, onUpdate, isEnabled)
             }
             
             Box(modifier = Modifier.widthIn(min = 60.dp).height(28.dp).padding(vertical = 4.dp), contentAlignment = Alignment.CenterStart) {
@@ -194,26 +201,28 @@ fun FilterArea(
                     Text(text = placeholder, color = Color(0xFFBBBBBB), fontSize = 11.sp)
                 }
                 
-                BasicTextField(
-                    value = text,
-                    onValueChange = { text = it },
-                    modifier = Modifier.focusRequester(focusRequester).onKeyEvent {
-                        if (it.key == Key.Enter && it.type == KeyEventType.KeyUp) {
-                            if (text.isNotBlank()) {
-                                onAdd(text, type, field)
-                                text = ""
-                            }
-                            true
-                        } else false
-                    },
-                    textStyle = androidx.compose.ui.text.TextStyle(
-                        color = Color.White, 
-                        fontSize = 13.sp,
-                        fontWeight = androidx.compose.ui.text.font.FontWeight.Medium
-                    ),
-                    singleLine = true,
-                    cursorBrush = androidx.compose.ui.graphics.SolidColor(Color.White)
-                )
+                if (isEnabled) {
+                    BasicTextField(
+                        value = text,
+                        onValueChange = { text = it },
+                        modifier = Modifier.focusRequester(focusRequester).onKeyEvent {
+                            if (it.key == Key.Enter && it.type == KeyEventType.KeyUp) {
+                                if (text.isNotBlank()) {
+                                    onAdd(text, type, field)
+                                    text = ""
+                                }
+                                true
+                            } else false
+                        },
+                        textStyle = androidx.compose.ui.text.TextStyle(
+                            color = Color.White, 
+                            fontSize = 13.sp,
+                            fontWeight = androidx.compose.ui.text.font.FontWeight.Medium
+                        ),
+                        singleLine = true,
+                        cursorBrush = androidx.compose.ui.graphics.SolidColor(Color.White)
+                    )
+                }
             }
         }
 
@@ -225,12 +234,12 @@ fun FilterArea(
                 }
             },
             modifier = Modifier.size(24.dp),
-            enabled = text.isNotBlank()
+            enabled = isEnabled && text.isNotBlank()
         ) {
             Icon(
                 Icons.Default.Add,
                 contentDescription = "Add Filter",
-                tint = if (text.isNotBlank()) color else Color.Gray,
+                tint = if (isEnabled && text.isNotBlank()) color else Color.Gray,
                 modifier = Modifier.size(16.dp)
             )
         }
@@ -241,7 +250,8 @@ fun FilterArea(
 fun InlineFilterChip(
     filter: LogFilter,
     onRemove: (String) -> Unit,
-    onUpdate: (LogFilter) -> Unit
+    onUpdate: (LogFilter) -> Unit,
+    isEnabled: Boolean = true
 ) {
     var isEditing by remember { mutableStateOf(false) }
     var editText by remember { mutableStateOf(filter.text) }
@@ -251,8 +261,8 @@ fun InlineFilterChip(
         color = backgroundColor.copy(alpha = 0.8f),
         shape = RoundedCornerShape(4.dp),
         modifier = Modifier
-            .height(24.dp) // Back to compact height
-            .clickable { if (!isEditing) isEditing = true }
+            .height(24.dp)
+            .clickable(enabled = isEnabled) { if (!isEditing) isEditing = true }
     ) {
         Row(
             modifier = Modifier
@@ -307,7 +317,7 @@ fun InlineFilterChip(
                 tint = Color.White.copy(alpha = 0.8f),
                 modifier = Modifier
                     .size(14.dp)
-                    .clickable { onRemove(filter.id) }
+                    .clickable(enabled = isEnabled) { onRemove(filter.id) }
             )
         }
     }

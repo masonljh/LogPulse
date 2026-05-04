@@ -16,7 +16,6 @@ class RegexLogParser(private val format: LogFormat) {
 
     fun parseLine(line: String, idPrefix: String = "", source: String = "", lineIndex: Int = 0): LogEvent? {
         val matchResult = regex.matchEntire(line)
-        
         if (matchResult == null) {
             // Unmatched line -> typically a multi-line log like stack traces
             // We append to the previous log
@@ -29,7 +28,22 @@ class RegexLogParser(private val format: LogFormat) {
                 previousLog = updatedLog
                 return updatedLog
             }
-            return null // Completely unparsable and no previous log
+            
+            // Fallback for first line if it doesn't match
+            val fallbackEvent = LogEvent(
+                id = "${idPrefix}_${lineIndex}",
+                lineIndex = lineIndex,
+                timestamp = "",
+                pid = "",
+                tid = "",
+                level = LogLevel.UNKNOWN,
+                tag = "UNPARSED",
+                message = line,
+                rawData = line,
+                source = source
+            )
+            previousLog = fallbackEvent
+            return fallbackEvent
         }
         
         val groups = matchResult.groupValues
