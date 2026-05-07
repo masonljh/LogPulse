@@ -8,11 +8,21 @@ class RegexLogParser(private val format: LogFormat) {
     private val regex = try {
         Regex(format.pattern)
     } catch (e: Exception) {
-        // If pattern is invalid, fallback to something that won't crash
         Regex(".*")
     }
 
-    private var previousLog: LogEvent? = null
+    private var pendingId: String = ""
+    private var pendingLineIndex: Int = 0
+    private var pendingTimestamp: String = ""
+    private var pendingPid: String = ""
+    private var pendingTid: String = ""
+    private var pendingLevel: LogLevel = LogLevel.UNKNOWN
+    private var pendingTag: String = ""
+    private val messageBuilder = StringBuilder()
+    private val rawDataBuilder = StringBuilder()
+    private var pendingSource: String = ""
+    
+    private var hasPending = false
 
     fun parseLine(line: String, idPrefix: String = "", source: String = "", lineIndex: Int = 0): LogEvent? {
         if (line.isBlank()) return null
@@ -21,72 +31,93 @@ class RegexLogParser(private val format: LogFormat) {
         if (line.startsWith("---------")) return null
         
         val matchResult = regex.matchEntire(line)
-        if (matchResult == null) {
-            // Unmatched line -> typically a multi-line log like stack traces
-            // We append to the previous log
-            val prev = previousLog
-            if (prev != null) {
-                val updatedLog = prev.copy(
-                    message = prev.message + "\n" + line,
-                    rawData = prev.rawData + "\n" + line
-                )
-                previousLog = updatedLog
-                return updatedLog
-            }
-            
-            // If it doesn't match and there's no previous log, 
-            // it might be a malformed line or something we should just ignore if it's too short.
-            if (line.length < 5) return null
-
-            // Fallback for first line if it doesn't match and seems like actual content
-            val fallbackEvent = LogEvent(
-                id = "${idPrefix}_${lineIndex}",
-                lineIndex = lineIndex,
-                timestamp = "",
-                pid = "",
-                tid = "",
-                level = LogLevel.UNKNOWN,
-                tag = "UNPARSED",
-                message = line,
-                rawData = line,
-                source = source
-            )
-            previousLog = fallbackEvent
-            return fallbackEvent
-        }
         
-        val groups = matchResult.groupValues
+        if (matchResult != null) {
+            // New log detected. Return the previous one if exists.
+            val completedEvent = flush()
+            
+            val groups = matchResult.groupValues
 
-        fun safeGroup(index: Int?): String {
-            if (index == null || index < 0 || index >= groups.size) return ""
-            return groups[index].trim()
+            fun safeGroup(index: Int?): String {
+                if (index == null || index < 0 || index >= groups.size) return ""
+                return groups[index].trim()
+            }
+
+            val levelStr = safeGroup(format.levelGroup)
+            val level = if (levelStr.isNotEmpty()) LogLevel.fromChar(levelStr.first().toString()) else LogLevel.UNKNOWN
+
+            // Start new pending log
+            pendingId = "${idPrefix}_${lineIndex}"
+            pendingLineIndex = lineIndex
+            pendingTimestamp = safeGroup(format.timestampGroup)
+            pendingPid = safeGroup(format.pidGroup)
+            pendingTid = safeGroup(format.tidGroup)
+            pendingLevel = level
+            pendingTag = safeGroup(format.tagGroup)
+            pendingSource = source
+            
+            messageBuilder.setLength(0)
+            messageBuilder.append(safeGroup(format.messageGroup))
+            
+            rawDataBuilder.setLength(0)
+            rawDataBuilder.append(line)
+            
+            hasPending = true
+            return completedEvent
+        } else {
+            // Unmatched line -> continuation
+            if (hasPending) {
+                messageBuilder.append("\n").append(line)
+                rawDataBuilder.append("\n").append(line)
+                return null
+            } else {
+                // First line doesn't match -> create a fallback UNPARSED event
+                if (line.length < 5) return null
+                
+                pendingId = "${idPrefix}_${lineIndex}"
+                pendingLineIndex = lineIndex
+                pendingTimestamp = ""
+                pendingPid = ""
+                pendingTid = ""
+                pendingLevel = LogLevel.UNKNOWN
+                pendingTag = "UNPARSED"
+                pendingSource = source
+                
+                messageBuilder.setLength(0)
+                messageBuilder.append(line)
+                
+                rawDataBuilder.setLength(0)
+                rawDataBuilder.append(line)
+                
+                hasPending = true
+                return null
+            }
         }
+    }
 
-        val levelStr = safeGroup(format.levelGroup)
-        val level = if (levelStr.isNotEmpty()) LogLevel.fromChar(levelStr.first().toString()) else LogLevel.UNKNOWN
-
+    fun flush(): LogEvent? {
+        if (!hasPending) return null
+        
         val event = LogEvent(
-            id = "${idPrefix}_${lineIndex}",
-            lineIndex = lineIndex,
-            timestamp = safeGroup(format.timestampGroup),
-            pid = safeGroup(format.pidGroup),
-            tid = safeGroup(format.tidGroup),
-            level = level,
-            tag = safeGroup(format.tagGroup),
-            message = safeGroup(format.messageGroup),
-            rawData = line,
-            source = source
+            id = pendingId,
+            lineIndex = pendingLineIndex,
+            timestamp = pendingTimestamp,
+            pid = pendingPid,
+            tid = pendingTid,
+            level = pendingLevel,
+            tag = pendingTag,
+            message = messageBuilder.toString(),
+            rawData = rawDataBuilder.toString(),
+            source = pendingSource
         )
         
-        previousLog = event
+        hasPending = false
         return event
     }
 
-    fun getPendingPreviousLog(): LogEvent? {
-        return previousLog
-    }
-
     fun reset() {
-        previousLog = null
+        hasPending = false
+        messageBuilder.setLength(0)
+        rawDataBuilder.setLength(0)
     }
 }

@@ -18,7 +18,7 @@ data class LogFormat(
         val ANDROID_LOGCAT = LogFormat(
             id = "android_logcat",
             name = "Android Logcat",
-            pattern = """^(\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\.\d{3})\s+(\d+)\s+(\d+)\s+([VDIWEA])\s+([^:]+):\s+(.*)$""",
+            pattern = """^((?:\d{2}-\d{2}|\d{4}-\d{2}-\d{2})\s+\d{2}:\d{2}:\d{2}\.\d{3})\s+(\d+)\s+(\d+)\s+([VDIWEA])\s+(.*?):\s*(.*)$""",
             timestampGroup = 1,
             pidGroup = 2,
             tidGroup = 3,

@@ -42,25 +42,15 @@ class ParseLogFileUseCase(
                 val currentChunk = mutableListOf<LogEvent>()
                 var lineCount = 0
                 val parser = RegexLogParser(format)
-                var pendingLog: LogEvent? = null
                 
                 while (!source.exhausted()) {
                     val line = source.readUtf8Line() ?: break
                     bytesRead += line.length.toLong() + 1
                     
-                    val event = parser.parseLine(line, idPrefix = filePath, source = actualSource, lineIndex = lineCount++)
+                    val completedEvent = parser.parseLine(line, idPrefix = filePath, source = actualSource, lineIndex = lineCount++)
                     
-                    if (event != null) {
-                        if (event.lineIndex == lineCount - 1) {
-                            // New log started. Pending is now complete.
-                            if (pendingLog != null) {
-                                currentChunk.add(pendingLog)
-                            }
-                            pendingLog = event
-                        } else {
-                            // Appended to pending.
-                            pendingLog = event
-                        }
+                    if (completedEvent != null) {
+                        currentChunk.add(completedEvent)
                     }
 
                     if (currentChunk.size >= chunkSize) {
@@ -70,8 +60,9 @@ class ParseLogFileUseCase(
                     }
                 }
 
-                if (pendingLog != null) {
-                    currentChunk.add(pendingLog)
+                val lastEvent = parser.flush()
+                if (lastEvent != null) {
+                    currentChunk.add(lastEvent)
                 }
                 
                 emit(LogParseResult.Success(logs = currentChunk.toList(), isComplete = true))
