@@ -24,19 +24,23 @@ class RegexLogParser(private val format: LogFormat) {
     
     private var hasPending = false
 
+    private val timestampRegex = Regex("""^(\d{2}-\d{2}|\d{4}-\d{2}-\d{2})\s+\d{2}:\d{2}:\d{2}\.\d{3}""")
+
     fun parseLine(line: String, idPrefix: String = "", source: String = "", lineIndex: Int = 0): LogEvent? {
         if (line.isBlank()) return null
         
         // Filter out Logcat markers like "--------- beginning of system"
         if (line.startsWith("---------")) return null
         
-        val matchResult = regex.matchEntire(line)
+        // Use find instead of matchEntire for more flexibility with trailing spaces
+        val matchResult = regex.find(line)
+        val isFullMatch = matchResult != null && matchResult.range.start == 0
         
-        if (matchResult != null) {
+        if (isFullMatch) {
             // New log detected. Return the previous one if exists.
             val completedEvent = flush()
             
-            val groups = matchResult.groupValues
+            val groups = matchResult!!.groupValues
 
             fun safeGroup(index: Int?): String {
                 if (index == null || index < 0 || index >= groups.size) return ""
@@ -65,13 +69,39 @@ class RegexLogParser(private val format: LogFormat) {
             hasPending = true
             return completedEvent
         } else {
+            // Check if it looks like a new log by timestamp even if full regex failed
+            val looksLikeNewLog = timestampRegex.find(line) != null
+            
+            if (looksLikeNewLog) {
+                val completedEvent = flush()
+                
+                // Fallback for lines that have a timestamp but didn't match the specific format
+                pendingId = "${idPrefix}_${lineIndex}"
+                pendingLineIndex = lineIndex
+                pendingTimestamp = timestampRegex.find(line)?.value ?: ""
+                pendingPid = ""
+                pendingTid = ""
+                pendingLevel = LogLevel.UNKNOWN
+                pendingTag = "UNPARSED"
+                pendingSource = source
+                
+                messageBuilder.setLength(0)
+                messageBuilder.append(line.substring(pendingTimestamp.length).trim())
+                
+                rawDataBuilder.setLength(0)
+                rawDataBuilder.append(line)
+                
+                hasPending = true
+                return completedEvent
+            }
+            
             // Unmatched line -> continuation
             if (hasPending) {
                 messageBuilder.append("\n").append(line)
                 rawDataBuilder.append("\n").append(line)
                 return null
             } else {
-                // First line doesn't match -> create a fallback UNPARSED event
+                // First line doesn't match and no timestamp -> create a fallback UNPARSED event
                 if (line.length < 5) return null
                 
                 pendingId = "${idPrefix}_${lineIndex}"
