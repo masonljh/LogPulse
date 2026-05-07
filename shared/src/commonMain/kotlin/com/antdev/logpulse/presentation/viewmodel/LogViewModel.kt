@@ -13,6 +13,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import com.antdev.logpulse.util.AppLogger
 
 class LogViewModel(
     private val parseUseCase: ParseLogFileUseCase = ParseLogFileUseCase(),
@@ -454,6 +455,7 @@ class LogViewModel(
                             }
                         }
                         is LogParseResult.Error -> {
+                            AppLogger.e("Error loading $fileName: ${result.message}")
                             statusMessage = "Error loading $fileName: ${result.message}"
                             loadingProgress.remove(fileName)
                         }

@@ -15,6 +15,11 @@ class RegexLogParser(private val format: LogFormat) {
     private var previousLog: LogEvent? = null
 
     fun parseLine(line: String, idPrefix: String = "", source: String = "", lineIndex: Int = 0): LogEvent? {
+        if (line.isBlank()) return null
+        
+        // Filter out Logcat markers like "--------- beginning of system"
+        if (line.startsWith("---------")) return null
+        
         val matchResult = regex.matchEntire(line)
         if (matchResult == null) {
             // Unmatched line -> typically a multi-line log like stack traces
@@ -29,7 +34,11 @@ class RegexLogParser(private val format: LogFormat) {
                 return updatedLog
             }
             
-            // Fallback for first line if it doesn't match
+            // If it doesn't match and there's no previous log, 
+            // it might be a malformed line or something we should just ignore if it's too short.
+            if (line.length < 5) return null
+
+            // Fallback for first line if it doesn't match and seems like actual content
             val fallbackEvent = LogEvent(
                 id = "${idPrefix}_${lineIndex}",
                 lineIndex = lineIndex,

@@ -5,9 +5,10 @@ import com.antdev.logpulse.domain.model.LogLevel
 
 class AndroidLogParser {
     // Regex for standard logcat: MM-DD HH:MM:SS.mmm PID TID Level Tag: Message
-    private val regex = Regex("""^(\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}\.\d{3})\s+(\d+)\s+(\d+)\s+([VDIWEA])\s+([^:]+):\s+(.*)$""")
-
+    private val regex = Regex("""^(\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\.\d{3})\s+(\d+)\s+(\d+)\s+([VDIWEA])\s+([^:]+):\s+(.*)$""")
+    
     fun parseLine(line: String, idPrefix: String = "", source: String = "", lineIndex: Int = 0): LogEvent? {
+        if (line.startsWith("---------")) return null
         val matchResult = regex.matchEntire(line) ?: return null
         val groups = matchResult.groupValues
 

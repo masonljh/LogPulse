@@ -8,6 +8,7 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import okio.FileSystem
 import okio.Path.Companion.toPath
+import com.antdev.logpulse.util.AppLogger
 
 class SequenceStorage(
     private val fileSystem: FileSystem = FileSystem.SYSTEM,
@@ -60,7 +61,7 @@ class SequenceStorage(
                 writeUtf8(content)
             }
         } catch (e: Exception) {
-            println("Error saving to $fileName: ${e.message}")
+            AppLogger.e("Error saving to $fileName", e)
         }
     }
 
@@ -74,7 +75,7 @@ class SequenceStorage(
             }
             json.decodeFromString<T>(content)
         } catch (e: Exception) {
-            println("Error loading from $fileName: ${e.message}")
+            AppLogger.e("Error loading from $fileName", e)
             null
         }
     }

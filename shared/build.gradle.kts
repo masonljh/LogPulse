@@ -14,6 +14,7 @@ kotlin {
             api(libs.androidx.lifecycle.viewmodel)
             api(libs.androidx.lifecycle.runtime.compose)
             implementation(libs.kotlinx.serialization.json)
+            implementation(libs.napier)
         }
         val jvmMain by getting {
             dependencies {

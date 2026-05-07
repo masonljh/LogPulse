@@ -30,6 +30,8 @@ import ui.ParseConfigDialog
 import com.antdev.logpulse.domain.model.*
 import java.awt.FileDialog
 import java.io.File
+import com.antdev.logpulse.util.AppLogger
+
 import java.net.URLDecoder
 import androidx.compose.ui.input.key.*
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -151,7 +153,7 @@ fun App(viewModel: LogViewModel = viewModel { LogViewModel() }) {
                                 }
                             }
                         } catch (e: Exception) {
-                            e.printStackTrace()
+                            AppLogger.e("Error handling external drop", e)
                         }
                     }
                 )
@@ -344,13 +346,21 @@ fun App(viewModel: LogViewModel = viewModel { LogViewModel() }) {
     }
 }
 
-fun main() = application {
-    Window(
-        onCloseRequest = ::exitApplication,
-        title = "LogPulse",
-        icon = painterResource("icon.png"),
-        state = rememberWindowState(width = 1400.dp, height = 900.dp)
-    ) {
-        App()
+fun main() {
+    AppLogger.init()
+    
+    Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+        AppLogger.e("Uncaught exception in thread ${thread.name}", throwable)
+    }
+    
+    application {
+        Window(
+            onCloseRequest = ::exitApplication,
+            title = "LogPulse",
+            icon = painterResource("icon.png"),
+            state = rememberWindowState(width = 1400.dp, height = 900.dp)
+        ) {
+            App()
+        }
     }
 }

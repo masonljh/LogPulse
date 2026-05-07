@@ -36,4 +36,28 @@ class AndroidLogParserTest {
         assertEquals("Message 2", events[1].message)
         assertEquals(LogLevel.DEBUG, events[1].level)
     }
+
+    @Test
+    fun testParseWithHeader() {
+        val content = """
+            --------- beginning of system
+            12-11 15:47:01.321 12345 12567 I ActivityManager: Message 1
+            --------- beginning of main
+            12-11 15:47:02.123 12345 12567 D TestTag: Message 2
+        """.trimIndent()
+
+        val events = parser.parse(content)
+        assertEquals(2, events.size)
+        assertEquals("Message 1", events[0].message)
+        assertEquals("Message 2", events[1].message)
+    }
+
+    @Test
+    fun testParseWithVaryingWhitespace() {
+        // Test with multiple spaces between date and time
+        val line = "12-11  15:47:01.321 12345 12567 I Tag: Message"
+        val event = parser.parseLine(line)
+        assertNotNull(event)
+        assertEquals("12-11  15:47:01.321", event.timestamp)
+    }
 }

@@ -34,16 +34,16 @@ compose.desktop {
                 org.jetbrains.compose.desktop.application.dsl.TargetFormat.Dmg
             )
             packageName = "LogPulse"
-            packageVersion = "1.0.7"
+            packageVersion = "1.0.8"
             
             windows {
-                packageVersion = "1.0.7"
+                packageVersion = "1.0.8"
                 shortcut = true
                 menu = true
             }
             
             macOS {
-                packageVersion = "1.0.7"
+                packageVersion = "1.0.8"
                 bundleID = "com.antdev.logpulse"
                 dockName = "LogPulse"
             }
