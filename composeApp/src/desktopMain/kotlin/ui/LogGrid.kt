@@ -47,6 +47,8 @@ fun LogGrid(
     onLogClicked: (LogEvent, Boolean, Boolean) -> Unit,
     state: LazyListState,
     logToFlowIndex: Map<LogEvent, FlowTrace>,
+    searchMatches: List<Int> = emptyList(),
+    currentSearchMatchIndex: Int = -1,
     modifier: Modifier = Modifier,
     showSourceColumn: Boolean = true
 ) {
@@ -78,11 +80,18 @@ fun LogGrid(
                         key = { index -> logs[index].id }
                     ) { index ->
                         val log = logs[index]
+                        val isSearchMatch = searchMatches.contains(index)
+                        val isCurrentSearchMatch = if (currentSearchMatchIndex != -1 && currentSearchMatchIndex < searchMatches.size) {
+                            searchMatches[currentSearchMatchIndex] == index
+                        } else false
+
                         LogTableRow(
                             index = log.lineIndex + 1,
                             log = log,
                             isSelected = selectedLogIds.contains(log.id),
                             isHighlighted = log == highlightedLog,
+                            isSearchMatch = isSearchMatch,
+                            isCurrentSearchMatch = isCurrentSearchMatch,
                             flowTrace = logToFlowIndex[log],
                             onClicked = { ctrl, shift -> onLogClicked(log, ctrl, shift) },
                             showSourceColumn = showSourceColumn,
@@ -226,6 +235,8 @@ fun LogTableRow(
     log: LogEvent,
     isSelected: Boolean,
     isHighlighted: Boolean,
+    isSearchMatch: Boolean = false,
+    isCurrentSearchMatch: Boolean = false,
     flowTrace: FlowTrace?,
     onClicked: (Boolean, Boolean) -> Unit,
     showSourceColumn: Boolean,
@@ -264,6 +275,7 @@ fun LogTableRow(
             .fillMaxWidth()
             .height(28.dp)
             .background(if (isSelected) Color(0xFF3F3F3F) else Color.Transparent)
+            .background(if (isCurrentSearchMatch) Color(0xFF664400) else if (isSearchMatch) Color(0xFF444400) else Color.Transparent)
             .background(flowColor)
             .background(highlightColor)
             .pointerInput(log.id) {

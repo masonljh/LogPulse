@@ -67,12 +67,22 @@ class LogViewModel(
     
     val customFormats = mutableStateListOf<LogFormat>()
     
+    // Search State (Non-filtering)
+    var searchText by mutableStateOf("")
+        private set
+    val searchMatches = mutableStateListOf<Int>()
+    var currentSearchMatchIndex by mutableStateOf(-1)
+        private set
+    var isSearchActive by mutableStateOf(false)
+        private set
+
     private var analysisJob: Job? = null
         
     val logToFlowIndex = mutableStateMapOf<LogEvent, FlowTrace>()
 
     private var loadJob: Job? = null
     private var filterJob: Job? = null
+    private var searchJob: Job? = null
 
     init {
         loadPersistentConfig()
@@ -303,6 +313,60 @@ class LogViewModel(
 
     private fun saveFilters() {
         storage.saveFilters(filters.toList())
+    }
+
+    // Search Functions
+    fun toggleSearch(active: Boolean) {
+        isSearchActive = active
+        if (!active) {
+            updateSearchQuery("")
+        }
+    }
+
+    fun updateSearchQuery(query: String) {
+        searchText = query
+        searchJob?.cancel()
+        
+        if (query.isEmpty()) {
+            searchMatches.clear()
+            currentSearchMatchIndex = -1
+            return
+        }
+
+        searchJob = viewModelScope.launch(Dispatchers.Default) {
+            val currentLogs = filteredLogs
+            val matches = mutableListOf<Int>()
+            
+            for (i in currentLogs.indices) {
+                if (currentLogs[i].message.contains(query, ignoreCase = true) ||
+                    currentLogs[i].tag.contains(query, ignoreCase = true)) {
+                    matches.add(i)
+                }
+            }
+            
+            withContext(Dispatchers.Main) {
+                searchMatches.clear()
+                searchMatches.addAll(matches)
+                if (matches.isNotEmpty()) {
+                    currentSearchMatchIndex = 0
+                    jumpToLog(currentLogs[matches[0]])
+                } else {
+                    currentSearchMatchIndex = -1
+                }
+            }
+        }
+    }
+
+    fun searchNext() {
+        if (searchMatches.isEmpty()) return
+        currentSearchMatchIndex = (currentSearchMatchIndex + 1) % searchMatches.size
+        jumpToLog(filteredLogs[searchMatches[currentSearchMatchIndex]])
+    }
+
+    fun searchPrev() {
+        if (searchMatches.isEmpty()) return
+        currentSearchMatchIndex = if (currentSearchMatchIndex <= 0) searchMatches.size - 1 else currentSearchMatchIndex - 1
+        jumpToLog(filteredLogs[searchMatches[currentSearchMatchIndex]])
     }
 
     fun registerSequence(sequence: SequencePattern) {

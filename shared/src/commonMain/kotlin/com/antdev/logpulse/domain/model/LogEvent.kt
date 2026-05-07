@@ -10,7 +10,8 @@ data class LogEvent(
     val tid: String,
     val message: String,
     val rawData: String,
-    val source: String = ""
+    val source: String = "",
+    val normalizedTimestamp: String? = null
 )
 
 enum class LogLevel {

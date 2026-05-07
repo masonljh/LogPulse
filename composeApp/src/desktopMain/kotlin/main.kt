@@ -3,6 +3,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -126,6 +127,16 @@ fun App(viewModel: LogViewModel = viewModel { LogViewModel() }) {
                             clipboardManager.setText(AnnotatedString(text))
                         }
                         true
+                    } else if (event.type == KeyEventType.KeyDown && 
+                        (event.isCtrlPressed || event.isMetaPressed) && 
+                        event.key == Key.F) {
+                        viewModel.toggleSearch(!viewModel.isSearchActive)
+                        true
+                    } else if (event.type == KeyEventType.KeyDown && event.key == Key.Escape) {
+                        if (viewModel.isSearchActive) {
+                            viewModel.toggleSearch(false)
+                            true
+                        } else false
                     } else {
                         false
                     }
@@ -326,6 +337,70 @@ fun App(viewModel: LogViewModel = viewModel { LogViewModel() }) {
                             },
                             isEnabled = !viewModel.isAnyFileLoading
                         )
+
+                        if (viewModel.isSearchActive) {
+                            Surface(
+                                color = Color(0xFF2D2D2D),
+                                modifier = Modifier.fillMaxWidth().height(48.dp),
+                                tonalElevation = 2.dp
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Search,
+                                        contentDescription = null,
+                                        tint = Color.Gray,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(Modifier.width(8.dp))
+                                    OutlinedTextField(
+                                        value = viewModel.searchText,
+                                        onValueChange = { viewModel.updateSearchQuery(it) },
+                                        modifier = Modifier.weight(1f).padding(vertical = 4.dp).onPreviewKeyEvent { 
+                                            if (it.type == KeyEventType.KeyDown && it.key == Key.Enter) {
+                                                if (it.isShiftPressed) viewModel.searchPrev() else viewModel.searchNext()
+                                                true
+                                            } else false
+                                        },
+                                        placeholder = { Text("Search logs (Ctrl+F to close)", fontSize = 13.sp) },
+                                        singleLine = true,
+                                        textStyle = LocalTextStyle.current.copy(fontSize = 13.sp),
+                                        colors = TextFieldDefaults.colors(
+                                            focusedContainerColor = Color.Transparent,
+                                            unfocusedContainerColor = Color.Transparent
+                                        )
+                                    )
+                                    
+                                    if (viewModel.searchMatches.isNotEmpty()) {
+                                        Text(
+                                            text = "${viewModel.currentSearchMatchIndex + 1} of ${viewModel.searchMatches.size}",
+                                            color = Color.LightGray,
+                                            fontSize = 12.sp,
+                                            modifier = Modifier.padding(horizontal = 8.dp)
+                                        )
+                                    } else if (viewModel.searchText.isNotEmpty()) {
+                                        Text(
+                                            text = "No matches",
+                                            color = Color(0xFFE57373),
+                                            fontSize = 12.sp,
+                                            modifier = Modifier.padding(horizontal = 8.dp)
+                                        )
+                                    }
+                                    
+                                    IconButton(onClick = { viewModel.searchPrev() }) {
+                                        Text("↑", color = Color.White)
+                                    }
+                                    IconButton(onClick = { viewModel.searchNext() }) {
+                                        Text("↓", color = Color.White)
+                                    }
+                                    IconButton(onClick = { viewModel.toggleSearch(false) }) {
+                                        Text("✕", color = Color.Gray)
+                                    }
+                                }
+                            }
+                        }
                         
                         Row(modifier = Modifier.fillMaxSize()) {
                             LogGrid(
@@ -335,6 +410,8 @@ fun App(viewModel: LogViewModel = viewModel { LogViewModel() }) {
                                 onLogClicked = { log, ctrl, shift -> viewModel.onLogClicked(log, ctrl, shift) },
                                 state = lazyListState,
                                 logToFlowIndex = viewModel.logToFlowIndex,
+                                searchMatches = viewModel.searchMatches,
+                                currentSearchMatchIndex = viewModel.currentSearchMatchIndex,
                                 modifier = Modifier.weight(1f),
                                 showSourceColumn = showSourceColumn
                             )
