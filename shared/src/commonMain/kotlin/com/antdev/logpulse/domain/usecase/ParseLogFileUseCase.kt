@@ -47,7 +47,8 @@ class ParseLogFileUseCase(
                     val line = source.readUtf8Line() ?: break
                     bytesRead += line.length.toLong() + 1
                     
-                    val completedEvent = parser.parseLine(line, idPrefix = filePath, source = actualSource, lineIndex = lineCount++)
+                    val completedEvent = parser.parseLine(line, idPrefix = filePath, source = actualSource)
+                    lineCount++
                     
                     if (completedEvent != null) {
                         currentChunk.add(completedEvent)

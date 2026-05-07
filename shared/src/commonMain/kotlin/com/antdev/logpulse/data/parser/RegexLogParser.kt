@@ -23,10 +23,11 @@ class RegexLogParser(private val format: LogFormat) {
     private var pendingSource: String = ""
     
     private var hasPending = false
+    private var logCount = 0
 
     private val timestampRegex = Regex("""^(\d{2}-\d{2}|\d{4}-\d{2}-\d{2})\s+\d{2}:\d{2}:\d{2}\.\d{3}""")
 
-    fun parseLine(line: String, idPrefix: String = "", source: String = "", lineIndex: Int = 0): LogEvent? {
+    fun parseLine(line: String, idPrefix: String = "", source: String = ""): LogEvent? {
         if (line.isBlank()) return null
         
         // Filter out Logcat markers like "--------- beginning of system"
@@ -51,8 +52,9 @@ class RegexLogParser(private val format: LogFormat) {
             val level = if (levelStr.isNotEmpty()) LogLevel.fromChar(levelStr.first().toString()) else LogLevel.UNKNOWN
 
             // Start new pending log
-            pendingId = "${idPrefix}_${lineIndex}"
-            pendingLineIndex = lineIndex
+            val currentLogIndex = logCount++
+            pendingId = "${idPrefix}_${currentLogIndex}"
+            pendingLineIndex = currentLogIndex
             pendingTimestamp = safeGroup(format.timestampGroup)
             pendingPid = safeGroup(format.pidGroup)
             pendingTid = safeGroup(format.tidGroup)
@@ -76,8 +78,9 @@ class RegexLogParser(private val format: LogFormat) {
                 val completedEvent = flush()
                 
                 // Fallback for lines that have a timestamp but didn't match the specific format
-                pendingId = "${idPrefix}_${lineIndex}"
-                pendingLineIndex = lineIndex
+                val currentLogIndex = logCount++
+                pendingId = "${idPrefix}_${currentLogIndex}"
+                pendingLineIndex = currentLogIndex
                 pendingTimestamp = timestampRegex.find(line)?.value ?: ""
                 pendingPid = ""
                 pendingTid = ""
@@ -104,8 +107,9 @@ class RegexLogParser(private val format: LogFormat) {
                 // First line doesn't match and no timestamp -> create a fallback UNPARSED event
                 if (line.length < 5) return null
                 
-                pendingId = "${idPrefix}_${lineIndex}"
-                pendingLineIndex = lineIndex
+                val currentLogIndex = logCount++
+                pendingId = "${idPrefix}_${currentLogIndex}"
+                pendingLineIndex = currentLogIndex
                 pendingTimestamp = ""
                 pendingPid = ""
                 pendingTid = ""

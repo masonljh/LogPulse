@@ -413,7 +413,8 @@ fun App(viewModel: LogViewModel = viewModel { LogViewModel() }) {
                                 searchMatches = viewModel.searchMatches,
                                 currentSearchMatchIndex = viewModel.currentSearchMatchIndex,
                                 modifier = Modifier.weight(1f),
-                                showSourceColumn = showSourceColumn
+                                showSourceColumn = showSourceColumn,
+                                showLineColumn = false // Explicitly hide
                             )
                         }
                     }

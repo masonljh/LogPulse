@@ -50,8 +50,10 @@ fun LogGrid(
     searchMatches: List<Int> = emptyList(),
     currentSearchMatchIndex: Int = -1,
     modifier: Modifier = Modifier,
-    showSourceColumn: Boolean = true
+    showSourceColumn: Boolean = true,
+    showLineColumn: Boolean = false
 ) {
+    var indexWidth by remember { mutableStateOf(40.dp) }
     var lineNumWidth by remember { mutableStateOf(50.dp) }
     var timeWidth by remember { mutableStateOf(140.dp) }
     var pidTidWidth by remember { mutableStateOf(90.dp) }
@@ -61,13 +63,15 @@ fun LogGrid(
 
     Column(modifier = modifier.fillMaxSize().background(Color(0xFF1E1E1E))) {
         LogGridHeader(
+            indexWidth = indexWidth, onIndexWidthChange = { indexWidth = it },
             lineNumWidth = lineNumWidth, onLineNumWidthChange = { lineNumWidth = it },
             timeWidth = timeWidth, onTimeWidthChange = { timeWidth = it },
             pidTidWidth = pidTidWidth, onPidTidWidthChange = { pidTidWidth = it },
             levelWidth = levelWidth, onLevelWidthChange = { levelWidth = it },
             tagWidth = tagWidth, onTagWidthChange = { tagWidth = it },
             sourceWidth = sourceWidth, onSourceWidthChange = { sourceWidth = it },
-            showSourceColumn = showSourceColumn
+            showSourceColumn = showSourceColumn,
+            showLineColumn = showLineColumn
         )
         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
             CompositionLocalProvider(LocalContentColor provides Color.White) {
@@ -86,7 +90,8 @@ fun LogGrid(
                         } else false
 
                         LogTableRow(
-                            index = log.lineIndex + 1,
+                            viewIndex = index + 1,
+                            lineIndex = log.lineIndex + 1,
                             log = log,
                             isSelected = selectedLogIds.contains(log.id),
                             isHighlighted = log == highlightedLog,
@@ -95,6 +100,8 @@ fun LogGrid(
                             flowTrace = logToFlowIndex[log],
                             onClicked = { ctrl, shift -> onLogClicked(log, ctrl, shift) },
                             showSourceColumn = showSourceColumn,
+                            showLineColumn = showLineColumn,
+                            indexWidth = indexWidth,
                             lineNumWidth = lineNumWidth,
                             timeWidth = timeWidth,
                             pidTidWidth = pidTidWidth,
@@ -119,13 +126,15 @@ fun LogGrid(
 
 @Composable
 fun LogGridHeader(
+    indexWidth: Dp, onIndexWidthChange: (Dp) -> Unit,
     lineNumWidth: Dp, onLineNumWidthChange: (Dp) -> Unit,
     timeWidth: Dp, onTimeWidthChange: (Dp) -> Unit,
     pidTidWidth: Dp, onPidTidWidthChange: (Dp) -> Unit,
     levelWidth: Dp, onLevelWidthChange: (Dp) -> Unit,
     tagWidth: Dp, onTagWidthChange: (Dp) -> Unit,
     sourceWidth: Dp, onSourceWidthChange: (Dp) -> Unit,
-    showSourceColumn: Boolean
+    showSourceColumn: Boolean,
+    showLineColumn: Boolean
 ) {
     val density = LocalDensity.current
     Row(
@@ -144,7 +153,12 @@ fun LogGridHeader(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Spacer(modifier = Modifier.width(12.dp))
-        ResizableHeaderCell("Line", lineNumWidth, onLineNumWidthChange, alignment = Alignment.End)
+        ResizableHeaderCell("#", indexWidth, onIndexWidthChange, alignment = Alignment.End)
+        
+        if (showLineColumn) {
+            Spacer(modifier = Modifier.width(4.dp))
+            ResizableHeaderCell("Line", lineNumWidth, onLineNumWidthChange, alignment = Alignment.End)
+        }
         Spacer(modifier = Modifier.width(8.dp))
         ResizableHeaderCell("Time", timeWidth, onTimeWidthChange)
         ResizableHeaderCell("PID/TID", pidTidWidth, onPidTidWidthChange, alignment = Alignment.End)
@@ -231,7 +245,8 @@ fun ResizableHeaderCell(
 
 @Composable
 fun LogTableRow(
-    index: Int,
+    viewIndex: Int,
+    lineIndex: Int,
     log: LogEvent,
     isSelected: Boolean,
     isHighlighted: Boolean,
@@ -240,6 +255,8 @@ fun LogTableRow(
     flowTrace: FlowTrace?,
     onClicked: (Boolean, Boolean) -> Unit,
     showSourceColumn: Boolean,
+    showLineColumn: Boolean,
+    indexWidth: Dp,
     lineNumWidth: Dp,
     timeWidth: Dp,
     pidTidWidth: Dp,
@@ -303,13 +320,26 @@ fun LogTableRow(
         Spacer(modifier = Modifier.width(12.dp))
 
         Text(
-            text = index.toString(),
-            color = Color(0xFF777777),
+            text = viewIndex.toString(),
+            color = Color(0xFF555555),
             fontSize = 11.sp,
             fontFamily = FontFamily.Monospace,
-            modifier = Modifier.width(lineNumWidth),
+            modifier = Modifier.width(indexWidth),
             textAlign = androidx.compose.ui.text.style.TextAlign.End
         )
+
+        if (showLineColumn) {
+            Spacer(modifier = Modifier.width(4.dp))
+
+            Text(
+                text = lineIndex.toString(),
+                color = Color(0xFF777777),
+                fontSize = 11.sp,
+                fontFamily = FontFamily.Monospace,
+                modifier = Modifier.width(lineNumWidth),
+                textAlign = androidx.compose.ui.text.style.TextAlign.End
+            )
+        }
 
         Spacer(modifier = Modifier.width(8.dp))
 

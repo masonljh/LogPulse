@@ -11,6 +11,7 @@ class MergeLogsUseCase {
         return normalizedSources.values.flatten().sortedWith(
             compareBy(
                 { it.normalizedTimestamp ?: it.timestamp },
+                { it.source },
                 { it.lineIndex }
             )
         )

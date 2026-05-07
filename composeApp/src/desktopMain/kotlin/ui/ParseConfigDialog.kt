@@ -75,7 +75,7 @@ fun ParseConfigDialog(
             val parser = RegexLogParser(format)
             val events = mutableListOf<LogEvent>()
             previewLines.forEachIndexed { index, line ->
-                val completedEvent = parser.parseLine(line, lineIndex = index)
+                val completedEvent = parser.parseLine(line)
                 if (completedEvent != null) {
                     events.add(completedEvent)
                 }
