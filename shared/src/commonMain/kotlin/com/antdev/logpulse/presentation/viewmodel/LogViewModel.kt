@@ -398,19 +398,25 @@ class LogViewModel(
     private fun reanalyzeAllFlows() {
         analysisJob?.cancel()
         analysisJob = viewModelScope.launch(Dispatchers.Default) {
-            statusMessage = "Analyzing flows..."
+            withContext(Dispatchers.Main) {
+                statusMessage = "Analyzing flows..."
+            }
             val traces = analyzeUseCase.analyzeIncremental(
                 newLogs = logs.toList(),
                 existingFlows = emptyList(),
                 sequences = registeredSequences.toList(),
                 onProgress = { progress ->
-                    analysisProgress = progress
+                    viewModelScope.launch(Dispatchers.Main) {
+                        analysisProgress = progress
+                    }
                 }
             )
-            flowTraces = traces
-            refreshFlowIndex()
-            analysisProgress = 1.0f
-            statusMessage = "Analysis complete (${flowTraces.size} flows found)"
+            withContext(Dispatchers.Main) {
+                flowTraces = traces
+                refreshFlowIndex()
+                analysisProgress = 1.0f
+                statusMessage = "Analysis complete (${flowTraces.size} flows found)"
+            }
         }
     }
 
