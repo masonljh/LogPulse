@@ -25,7 +25,7 @@ class RegexLogParser(private val format: LogFormat) {
     private var hasPending = false
     private var logCount = 0
 
-    private val timestampRegex = Regex("""^(\d{2}-\d{2}|\d{4}-\d{2}-\d{2})\s+\d{2}:\d{2}:\d{2}\.\d{3}""")
+    private val timestampRegex = Regex("""^(\d{2}-\d{2}|\d{4}-\d{2}-\d{2})\s+\d{2}:\d{2}:\d{2}\.\d{3,6}""")
 
     fun parseLine(line: String, idPrefix: String = "", source: String = ""): LogEvent? {
         if (line.isBlank()) return null
